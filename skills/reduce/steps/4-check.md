@@ -29,7 +29,7 @@ A check is a signal check, a rule list, or a case:
 
 ## Reply
 
-Write the reply in the record file that the packet names. Keep its two headings.
+Write the reply in the record file that the packet names. Keep its three headings.
 
 `## Checks` has one line for each check of the checks file, in its order, then one line for `open-review`. Name a check as the checks file names it, such as `guards-and-errors/guard-that-cannot-fail`. A topic without a pattern in the feature has one line for all its checks, such as `guards-and-errors`. Start every line at the margin: do not nest a check under its topic.
 
@@ -50,6 +50,12 @@ Write the reply in the record file that the packet names. Keep its two headings.
 - Entry IDs come from the map record. Separate several with `;`. Locations are `path:line` or `path:start-end` in the target.
 - An `absent` line still names the place where you looked. A skipped check and a clean check must look different.
 
+`## Leads` has one line for each lead, numbered from the ID that the packet gives. Leave it empty when you have no lead:
+
+```text
+- N<n> | <feature ID> | <lead> | <path:line>
+```
+
 ## Rules for every check
 
 - A signal or a case suggests a candidate, a place to examine. It is never evidence. Only the target's own trace, run, source, or search result decides the rung.
@@ -60,7 +66,7 @@ Write the reply in the record file that the packet names. Keep its two headings.
 - A case's **Reduce fit** states how the case maps to [fixed behavior](../guides/fixed-behavior.md#fixed-behavior). Some cases changed behavior. The reduce skill keeps that behavior and reports it.
 - A finding that would change an observable result is an `intent` finding. Removal of an `incidental` result is a contingent reduction.
 - Most slop-detector rules find bugs or security problems, such as a mutable default argument or disabled TLS verification. They are not reductions.
-- Record a suspected defect that is not a reduction as a lead, as the packet says, and not as a finding. The report lists it apart from the reductions.
+- Record a suspected defect that is not a reduction in `## Leads`, as the packet says, and not as a finding. The report lists it apart from the reductions.
 - Do not turn a signal into a ban. A catch that salvages data, a lazy import for start-up time, and a flag that serves as a kill switch each have a legitimate reason. Their value depends on the actual call path.
 - Judge abstraction by concepts and reader effort, not by the number of files. Do not fragment what belongs together.
 - For each finding, name what disappears: a branch, state variable, owner, dependency, interface, or optional feature. Explain why the required behavior survives.

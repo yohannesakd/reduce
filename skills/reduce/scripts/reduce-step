@@ -249,15 +249,19 @@ class Run:
     def checks_path(self, step, feature):
         return self.record_path(step, feature).with_suffix(".checks.md")
 
-    def lead_rule(self):
-        leads = self.records / "leads.md"
+    def lead_rule(self, feature=None):
         return (f"When you see a possible reduction outside this task, or a suspected defect that is not a reduction, "
-                f"do not follow it. Append one line to {leads}: `- <feature ID or target> | <lead> | <path:line>`. "
-                f"Skip a lead that this packet or {leads} already names.")
+                f"do not follow it. Record it in `## Leads` of your record, numbered from {self.first_id('N', feature)}. "
+                f"Skip a lead that this packet already names.")
 
-    def first_finding(self, feature):
-        """Each feature numbers its findings from its own hundred, so that parallel reviewers do not share IDs."""
-        return f"X{100 * (self.items('feature').index(feature) + 1) + 1}"
+    def first_id(self, prefix, feature=None):
+        """Each feature numbers its findings and leads from its own hundred, so that parallel reviewers do not share IDs.
+        The design step numbers from 1."""
+        return f"{prefix}{100 * (self.items('feature').index(feature) + 1) + 1 if feature else 1}"
+
+    def revisions(self):
+        """The plan's revisions from the scope record: the baseline that the plan changes, and the references."""
+        return self.rows(self.record_path(SCOPE_STEP, None), "Revisions")
 
     # Items for later steps come from the scope record: its features.
     def items(self, kind):
@@ -477,12 +481,17 @@ class Run:
         lines = [text.rstrip(), "", f"# Feature {feature}: {row[1]}", "",
                  f"Target checkout: {self.target}. Paths below are relative to it.",
                  f"Write your reply in: {self.record_path(CHECK_STEP, feature)}",
-                 f"Number your findings from {self.first_finding(feature)}.", self.lead_rule()]
+                 f"Number your findings from {self.first_id('X', feature)}.", self.lead_rule(feature)]
         if len(row) > 3:
             lines.append(f"Entry points: {row[3]}")
         if leads:
             lines += ["", "## Tool results to close", "", f"Name each result in the `{TOOL_RESULTS}` line or in a finding.", ""]
             lines += [f"- {' | '.join(lead)}" for lead in leads]
+        if self.playbook == "plan":
+            lines += ["", "## Revisions", "", "The baseline is the source that the plan changes. A reference is another revision. "
+                      "Code that exists only at a reference revision is not in the baseline: using it is a port, not reuse. "
+                      "Name the revision in the finding.", ""]
+            lines += [f"- {' | '.join(row)}" for row in self.revisions()]
         lines += ["", "## Code", ""] + self.code(row)
         lines += ["", "## Map record", "", "The mapper's inventory and notes for this feature. Cite its entry IDs.", "",
                   demote(COMMENT.sub("", self.record_path(MAP_STEP, feature).read_text()).strip(), 2)]
@@ -613,7 +622,7 @@ class Run:
             group = groups.setdefault(item, {"feature": item, "name": self.feature_row(item)[1], "record": record,
                                              "packet": str(self.packet_path(step, item).relative_to(self.records))})
             if step == CHECK_STEP:
-                group["first_finding_id"] = self.first_finding(item)
+                group["first_finding_id"] = self.first_id('X', item)
         listed["features"] = list(groups.values())
         print(json.dumps(listed, separators=(",", ":")))
 
@@ -650,8 +659,7 @@ class Run:
         review.write_text(text)
 
     def findings(self):
-        """Every finding of the submitted design and check records, as (feature, row). A design finding has no feature.
-        Two features can use the same ID."""
+        """Every finding of the submitted design and check records, as (feature, row). A design finding has no feature."""
         found = []
         for step in (QUICK_STEP, DESIGN_STEP):
             if self.state["steps"].get(step, {}).get("submitted"):
@@ -760,13 +768,15 @@ class Run:
             errors += [f"`## Checks` has no line for `{name}`. Give one line to the open review, to each check that always applies, and to each topic."
                        for name in [OPEN_REVIEW] + [check for check in self.checks() if check in self.always()] + self.choices()
                        if not any(cell in (name, name.rpartition("/")[2]) or cell.startswith(f"{name}/") for cell in cells)]
-        if step == REPORT_STEP and (self.records / "leads.md").exists():
-            written = [line for line in (self.records / "leads.md").read_text().splitlines() if line.strip()]
-            closed = {named(row[0]) for row in rows_of(text, "Leads")}
-            missing = [str(number) for number in range(1, len(written) + 1) if str(number) not in closed]
-            if missing:
-                errors.append(f"`## Leads` has no row for these lines of leads.md: {', '.join(missing)}. "
-                              "Start each row with the number of the line.")
+        if step in (DESIGN_STEP, CHECK_STEP):  # the report keys leads and dispositions on these IDs
+            for name, prefix in (("Findings", "X"), ("Leads", "N")):
+                first = self.first_id(prefix, item)
+                wrong = [row[0] for row in self.rows(record, name)
+                         if (number := re.fullmatch(rf"{prefix}(\d+)", named(row[0]))) and int(number[1]) // 100 != int(first[1:]) // 100]
+                if wrong:
+                    errors.append(f"`## {name}` has IDs outside the numbers of this record: {', '.join(wrong[:10])}. Number them from {first}.")
+        if step == REPORT_STEP:
+            errors += self.validate_report(text)
         if spec.get("review"):
             review = self.records / "review.md"
             rest = review.read_text().partition(TABLES_START)[0] + review.read_text().partition(TABLES_END)[2] if review.exists() else ""
@@ -774,11 +784,39 @@ class Run:
                 errors.append("review.md has no report beside the driver's tables. Write the sections of the report step in it.")
         return errors
 
+    def validate_report(self, text):
+        """Every lead gets a row, and in a plan run every finding that changes the plan gets a disposition."""
+        errors = []
+        records = [self.record_path(DESIGN_STEP, None)] + [self.record_path(CHECK_STEP, item) for item in self.items("feature")]
+        leads = [named(row[0]) for path in records for row in self.rows(path, "Leads")]
+        closed = {named(row[0]) for row in rows_of(text, "Leads")}
+        missing = [lead for lead in leads if lead not in closed]
+        if missing:
+            errors.append(f"`## Leads` has no row for these leads: {', '.join(missing)}. Start each row with the lead's ID.")
+        if self.playbook != "plan":
+            return errors
+        rows = self.findings() + [(None, row) for row in rows_of(text, "Whole-target findings") if row[0].lower() != "none"]
+        changing = [named(row[0]) for _, row in rows if len(row) < 2 or named(row[1]).lower() != "keep"]
+        dispositions = {named(row[0]): row for row in rows_of(text, "Dispositions")}
+        missing = [finding for finding in changing if finding not in dispositions]
+        if missing:
+            errors.append(f"`## Dispositions` has no row for these findings: {', '.join(missing)}. "
+                          "Give each finding whose rung is not keep one row.")
+        unwritten = [finding for finding, row in dispositions.items() if len(row) > 2 and named(row[1]).lower() == "applied"
+                     and not any((self.records / path.rstrip(".")).exists()
+                                 for path in re.findall(r"[^\s|`('\"]*reduced-[^\s|`):#,;'\"]+", row[2]))]
+        if unwritten:
+            errors.append(f"`## Dispositions`: these applied findings name no reduced copy that exists: {', '.join(unwritten)}. "
+                          "Name the copy's path, absolute or relative to the records directory, and its heading.")
+        return errors
+
     def validate_scope(self, spec, text):
         """The driver builds each later item from the features: their IDs, titles, and files."""
         errors = []
         if self.playbook == "code" and not self.base:
             errors.append("`## Revisions` needs the base commit first. The driver uses it to build each feature's diff.")
+        if self.playbook == "plan" and not any(named(row[0]).lower() == "baseline" for row in rows_of(text, "Revisions")):
+            errors.append("`## Revisions` needs a baseline row: the revision of each repository that the plan changes.")
         seen = set()
         for row in rows_of(text, "Features"):
             if row[0] in seen:

@@ -4,7 +4,8 @@ Rules for the plan playbook. The plan steps link to the section that each one ne
 
 ## Requirement kinds
 
-In this playbook, a section is a feature, and a unit is a plan unit. The baseline is the source revision that the plan changes.
+In this playbook, a section is a feature, and a unit is a plan unit. The baseline is the source revision that the plan changes. A reference is another revision that the plan or its sources cite, such as an installed release or an old build. The scope record lists both in `## Revisions`.
+Code that exists only at a reference revision is not in the baseline. Using it is a port, not reuse: the unit stays, and its finding names the revision.
 
 ## Requirements
 
@@ -129,6 +130,7 @@ Write a reduced copy of each changed plan document, named `reduced-<file name>`:
 - Keep the original format, headings, and requirement and QA IDs, so the copy reads as a normal plan.
   When a result removes a whole section, keep its heading with one line that names the removed units and links their rows in `review.md`.
 - Apply every result except contingent reductions. Change an `unresolved` unit only after its question is answered, and link its row in `Questions`.
+- In the report record's `## Dispositions`, give each finding whose rung is not `keep` one row: `applied` with the reduced copy's path and heading, `contingent` with its question, `unresolved` with its missing evidence, or `rejected` with the reason. The driver rejects the record when a finding has no row, or when an applied row names no reduced copy that exists.
 - Point links between changed documents to their reduced copies. Rewrite other relative links to reach the same targets.
 - Order phases so each leaves a working, verifiable result. Put units that must change together in one phase.
   Without phases, add an order only when units must change in sequence.

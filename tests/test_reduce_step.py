@@ -63,7 +63,7 @@ class ReduceStepTest(unittest.TestCase):
     def planned(self, feature):
         return [full or listed for full, listed in PLANNED.findall(self.checks(feature))]
 
-    def reply(self, feature, results=None, findings=(), by_topic=False):
+    def reply(self, feature, results=None, findings=(), by_topic=False, leads=()):
         """Fill a feature's reply: one `absent` line for the open review and for each planned check, unless `results` gives its finding IDs.
         With `by_topic`, each topic has one line in place of its checks."""
         results = results or {}
@@ -73,7 +73,7 @@ class ReduceStepTest(unittest.TestCase):
         lines = [f"{check} | {results.get(check, 'absent')} | app.py:1-2 | read the whole feature for this pattern" for check in names]
         record = self.record("4-check", feature)
         record.write_text("".join(line for line in record.read_text().splitlines(True) if not line.startswith("- ")))
-        fill(record, {"Checks": lines, "Findings": list(findings) or ["none | no check found a reduction"]})
+        fill(record, {"Checks": lines, "Findings": list(findings) or ["none | no check found a reduction"], "Leads": list(leads)})
 
     def run_step(self, *args, ok=True):
         result = subprocess.run([sys.executable, str(self.script), *args, "--records", str(self.records)],
@@ -109,9 +109,9 @@ class ReduceStepTest(unittest.TestCase):
             fill(self.record("2-map", feature), {"Intent": ["gives callers a value"], "Inventory": ["B1 | returns 1; run() returns it | app.py:2"]})
             self.run_step("submit", "--item", f"2-map:{feature}")
 
-    def submit_checks(self, findings=None):
-        """Submit every released check with `none`, or with the findings given for its feature and check."""
-        findings = findings or {}
+    def submit_checks(self, findings=None, leads=None):
+        """Submit every released check with `none`, or with the findings given for its feature and check, and the leads of its feature."""
+        findings, leads = findings or {}, leads or {}
         while True:
             output = self.run_step("next").stdout
             match = RELEASED.search(output)
@@ -119,7 +119,8 @@ class ReduceStepTest(unittest.TestCase):
                 return output
             feature = match[1]
             rows = findings.get(feature, {})
-            self.reply(feature, {check: row.split(" | ")[0] for check, row in rows.items()}, rows.values(), by_topic=feature == "F2")
+            self.reply(feature, {check: row.split(" | ")[0] for check, row in rows.items()}, rows.values(), by_topic=feature == "F2",
+                       leads=leads.get(feature, ()))
             self.run_step("submit")
 
     def test_releases_one_step_and_rejects_an_unfilled_record(self):
@@ -196,7 +197,7 @@ class ReduceStepTest(unittest.TestCase):
         mapped = self.record("2-map", "F1").with_suffix(".packet.md").read_text()
         self.assertIn(f"Write your record in: {self.record('2-map', 'F1')}", mapped)
         self.assertIn(f"Scope record, for the sources: {self.record('1-scope')}", mapped)
-        self.assertNotIn("leads.md", mapped)  # only the design and check packets take leads
+        self.assertNotIn("## Leads", mapped)  # only the design and check records take leads
         self.assertIn("<id, such as B1> | <result and consumers> | <evidence: path:line>", mapped)
         self.assertIn("## Intent", mapped)
         self.assertIn("<id, such as Q1> | <question> | <what you found: path:line> | <answer, or unanswered>", mapped)
@@ -209,7 +210,7 @@ class ReduceStepTest(unittest.TestCase):
         packet = (self.records / "design.packet.md").read_text()
         self.assertIn("This run is in unattended mode.", packet)
         self.assertIn(f"- Scope record: {self.record('1-scope')}", packet)
-        self.assertIn(f"Append one line to {self.records / 'leads.md'}", packet)
+        self.assertIn("Record it in `## Leads` of your record, numbered from N1.", packet)
         self.assertIn(f"- Map record of F2: {self.record('2-map', 'F2')}", packet)
         self.assertIn("## Purpose\n<!-- One paragraph", packet)
         self.submit_design(["X1 | reuse | parity | autonomous | F1:B1; F2:B1 | app.py:2 | one owner for the return",
@@ -228,6 +229,8 @@ class ReduceStepTest(unittest.TestCase):
         self.assertIn(f"Checks file: {self.record('4-check', 'F1').with_suffix('.checks.md')}.\n", packet)
         self.assertIn("- L1 | F1 (duplicate) | duplicate return | app.py:2", packet)
         self.assertIn("Number your findings from X101.", packet)
+        self.assertIn("Record it in `## Leads` of your record, numbered from N101.", packet)
+        self.assertNotIn("## Revisions", packet)  # only a plan run has reference revisions
         self.assertIn("## Other features\n\nOther reviewers check these features. Search them for an owner of the same work.\n\n- F2 | Other | app.py\n", packet)
         self.assertIn("## Design document", packet)
         self.assertIn("run gives callers a value (S1).", packet)
@@ -270,11 +273,16 @@ class ReduceStepTest(unittest.TestCase):
         self.reply("F2", {"every-feature/ladder": "X201"}, ["X201 | remove | parity | autonomous | B1 | app.py:2 | drop it"])
         self.run_step("submit", "--item", "4-check:F2")
         self.assertIn("is already submitted", self.run_step("submit", "--item", "4-check:F2", ok=False).stderr)
-        self.reply("F1", {"every-feature/ladder": "X201"}, ["X201 | remove | parity | autonomous | B1 | app.py:2 | same | with a pipe"])
+        self.reply("F1", {"every-feature/ladder": "X201"}, ["X201 | remove | parity | autonomous | B1 | app.py:2 | same | with a pipe"],
+                   leads=["N201 | F2 | a second copy | app.py:2"])
+        rejected = self.run_step("submit", "--item", "4-check:F1", ok=False).stderr  # the report keys findings and leads on their IDs
+        self.assertIn("`## Findings` has IDs outside the numbers of this record: X201. Number them from X101.", rejected)
+        self.assertIn("`## Leads` has IDs outside the numbers of this record: N201. Number them from N101.", rejected)
+        self.reply("F1", {"every-feature/ladder": "X101"}, ["X101 | remove | parity | autonomous | B1 | app.py:2 | same | with a pipe"])
         draft = json.loads(self.run_step("findings", "--item", "4-check:F1").stdout)
-        self.assertEqual([(row["id"], row["item"], row["finding"]) for row in draft], [("X201", "F1", "same | with a pipe")])
+        self.assertEqual([(row["id"], row["item"], row["finding"]) for row in draft], [("X101", "F1", "same | with a pipe")])
         self.run_step("submit", "--item", "4-check:F1")
-        self.assertEqual([(row["id"], row["item"]) for row in json.loads(self.run_step("findings").stdout)], [("X201", "F1"), ("X201", "F2")])
+        self.assertEqual([(row["id"], row["item"]) for row in json.loads(self.run_step("findings").stdout)], [("X101", "F1"), ("X201", "F2")])
 
     def test_complete_run_rewrites_the_tables_and_needs_a_report(self):
         self.submit_scope()
@@ -288,33 +296,34 @@ class ReduceStepTest(unittest.TestCase):
         self.submit_design()
         self.assertIn("- X3 | simplify | parity | user", self.packet("F1"))
         output = self.submit_checks({"F1": {"every-feature/behavior-nothing-needs":
-                                            "X1 | remove | intent | user | B1 | app.py:2 | remove the return"},
+                                            "X101 | remove | intent | user | B1 | app.py:2 | remove the return"},
                                      "F2": {"every-feature/fresh-design":
-                                            "X2 | simplify | parity | autonomous | B1 | app.py:1 | inline run"}})
+                                            "X201 | simplify | parity | autonomous | B1 | app.py:1 | inline run"}},
+                                    {"F2": ["N201 | F1 | the mapper saw a second copy | app.py:2"]})
         self.assertIn("=== Step 5-report |", output)
         review = self.records / "review.md"
         table = review.read_text()
-        self.assertIn("| F1 Run | every-feature/behavior-nothing-needs | X1 |", table)
+        self.assertIn("| F1 Run | every-feature/behavior-nothing-needs | X101 |", table)
         self.assertIn("| F2 Other | every-feature/ladder | none |", table)
         self.assertIn("| F1 Run | open-review | none |", table)
         self.assertIn(f"| F2 Other | {TOPICS[0]}/{CHECKS_OF[TOPICS[0]][0]} | none |", table)  # from the line of its topic
         self.assertNotIn("missing", table)
-        self.assertIn("| X1 | F1 | remove | intent | user | app.py:2 | remove the return |", table)
+        self.assertIn("| X101 | F1 | remove | intent | user | app.py:2 | remove the return |", table)
         self.assertIn("| X3 | design | simplify | parity | user | app.py:1 | one module |", table)
-        fill(self.record("5-report"), {"Whole-target findings": ["W1 | prevent | parity | autonomous | X1 | app.py:1 | share one owner"]})
-        (self.records / "leads.md").write_text("- F2 | the mapper saw a second copy | app.py:2\n")
+        fill(self.record("5-report"), {"Whole-target findings": ["W1 | prevent | parity | autonomous | X101 | app.py:1 | share one owner"]})
         rejected = self.run_step("submit", ok=False).stderr
         self.assertIn("review.md has no report", rejected)
-        self.assertIn("`## Leads` has no row for these lines of leads.md: 1.", rejected)
-        fill(self.record("5-report"), {"Leads": ["1 | W1 | the shared owner removes it"]})
-        edited = table.replace("| X1 | F1 | remove |", "| X1 | F1 | keep |")
-        review.write_text(edited + "\nComplete. The review found two findings in two features. X1 removes the return, and X2 "
-                          "inlines run. W1 shares one owner.\n\n## Decisions for you\n\nX1: remove the return?\n")
+        self.assertIn("`## Leads` has no row for these leads: N201.", rejected)
+        self.assertNotIn("Dispositions", rejected)  # only a plan run writes reduced copies
+        fill(self.record("5-report"), {"Leads": ["N201 | W1 | the shared owner removes it"]})
+        edited = table.replace("| X101 | F1 | remove |", "| X101 | F1 | keep |")
+        review.write_text(edited + "\nComplete. The review found two findings in two features. X101 removes the return, and X201 "
+                          "inlines run. W1 shares one owner.\n\n## Decisions for you\n\nX101: remove the return?\n")
         self.assertIn("=== Step 6-close |", self.run_step("submit").stdout)
         final = review.read_text()
-        self.assertIn("| X1 | F1 | remove |", final)
-        self.assertNotIn("| X1 | F1 | keep |", final)
-        self.assertIn("X1: remove the return?", final)
+        self.assertIn("| X101 | F1 | remove |", final)
+        self.assertNotIn("| X101 | F1 | keep |", final)
+        self.assertIn("X101: remove the return?", final)
         fill(self.record("6-close"), {})
         self.run_step("status", "--final", ok=False)
         (self.target / "app.py").write_text("def run():\n    return 1\n\n")  # the close step applies findings
@@ -322,6 +331,36 @@ class ReduceStepTest(unittest.TestCase):
         self.run_step("status", "--final")
         log = [json.loads(line) for line in (self.records / ".reduce-step/log.jsonl").read_text().splitlines()]
         self.assertEqual(len([e for e in log if e["event"] == "release"]), len([e for e in log if e["event"] == "submit"]))
+
+    def test_plan_run_names_its_revisions_and_places_each_finding(self):
+        self.run_step("start", "--playbook", "plan", "--target", str(self.target))
+        scope = self.record("1-scope")
+        fill(scope, {"Revisions": ["reference | app | 0000000 | an old build to port from"],
+                     "Features": ["F1 | Run | app.py", "F2 | Other | app.py"]})
+        self.assertIn("`## Revisions` needs a baseline row", self.run_step("submit", ok=False).stderr)
+        scope.write_text(scope.read_text().replace("- reference |", "- baseline | app | HEAD | the source that the plan changes\n- reference |"))
+        self.run_step("submit")
+        self.run_step("release")
+        for feature in ("F1", "F2"):
+            fill(self.record("2-map", feature), {"Requirements": ["R1 | accepted | run returns 1 | app.py:2"]})
+            self.run_step("submit", "--item", f"2-map:{feature}")
+        self.submit_design(["X1 | reuse | parity | autonomous | F1:R1; F2:R1 | app.py:2 | one owner for the return"])
+        packet = self.packet("F1")
+        self.assertIn("Code that exists only at a reference revision is not in the baseline: using it is a port, not reuse.", packet)
+        self.assertIn("- reference | app | 0000000 | an old build to port from", packet)
+        self.submit_checks({"F1": {"every-feature/ladder": "X101 | remove | parity | autonomous | R1 | app.py:2 | drop the return"},
+                            "F2": {"every-feature/ladder": "X201 | keep | parity | autonomous | R1 | app.py:2 | a caller reads it"}})
+        report = self.record("5-report")
+        fill(report, {"Whole-target findings": ["none | the features share no owner"]})
+        review = self.records / "review.md"
+        review.write_text(review.read_text() + "\nComplete. The review found two findings that change the plan: X1 gives the return "
+                          "one owner, and X101 drops it. The reduced plan applies both.\n")
+        rejected = self.run_step("submit", ok=False).stderr
+        self.assertIn("`## Dispositions` has no row for these findings: X1, X101.", rejected)  # X201 keeps its unit
+        fill(report, {"Dispositions": ["X1 | applied | reduced-plan.md, Phase 1", "X101 | applied | Phase 2 of `reduced-plan.md`."]})
+        self.assertIn("these applied findings name no reduced copy that exists: X1, X101.", self.run_step("submit", ok=False).stderr)
+        (self.records / "reduced-plan.md").write_text("Status: proposal, not accepted\n")
+        self.assertIn("=== Step 6-close |", self.run_step("submit").stdout)
 
     def test_attended_run_in_the_runs_folder_uses_the_configured_models(self):
         result = subprocess.run([sys.executable, str(self.script), "start", "--playbook", "codebase", "--mode", "attended",
@@ -452,6 +491,7 @@ class ReduceStepTest(unittest.TestCase):
         text = (self.records / "retro/packet.md").read_text()
         self.assertIn(f"claude:{session}: {parent}", text)
         self.assertIn("| user | reduce app.py", text)
+        self.assertIn(f"- brief: Read {packet}. Follow it, and write your reply in", text)
         self.assertIn("- last reply: Wrote the map.", text)
         self.assertIn(f"- no transcript for {packet.relative_to(self.records).as_posix().replace('F1-run', 'F2-other')}", text)
 

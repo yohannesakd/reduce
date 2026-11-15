@@ -96,7 +96,7 @@ At the start of each of these steps, run `release --records "$records"`. It rele
 6. When a record is written, run `submit --records "$records" --item <step>:<feature>`, such as `--item 2-map:F1`. For the design step, run `submit --records "$records"`.
 6. When the driver reports problems, send them to the same subagent to fix. Then submit again.
 
-The driver rejects a record only when a later step cannot use it: the target changed, a section is missing, a feature has no files, a changed file is in no feature, a row ID has no prefix, a check or a line of `leads.md` has no line, or a finding's rung, effect, or decision is not one of the listed values.
+The driver rejects a record only when a later step cannot use it: the target changed, a section is missing, a feature has no files, a changed file is in no feature, a row ID has no prefix, a check or a lead has no line, a finding or lead ID is outside its record's numbers, a plan run has no baseline revision, a plan finding has no disposition, or a finding's rung, effect, or decision is not one of the listed values.
 In a record, a row is a line that starts with `- ` and has a `|`. Any other line is a note.
 It prints other problems, such as a cited file that does not exist, as notes. It does not judge citation form or conclusions.
 

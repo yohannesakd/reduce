@@ -45,7 +45,8 @@
       "sections": {
         "Revisions": {
           "playbooks": [
-            "code"
+            "code",
+            "plan"
           ],
           "columns": [
             {
@@ -55,7 +56,26 @@
               "name": "head"
             }
           ],
-          "min": 1
+          "min": 1,
+          "plan_columns": [
+            {
+              "name": "role",
+              "values": [
+                "baseline",
+                "reference"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "repository"
+            },
+            {
+              "name": "revision"
+            },
+            {
+              "name": "what it is"
+            }
+          ]
         },
         "Features": {
           "columns": [
@@ -455,6 +475,11 @@
           "min": 0,
           "none": true
         },
+        "Leads": {
+          "columns": "4-check:Leads",
+          "min": 0,
+          "none": true
+        },
         "Parent review": {
           "prose": "The parent fills this section after it checks the document against the code: what it confirmed, changed, and added. The design subagent leaves it empty.",
           "min": 1
@@ -535,6 +560,26 @@
           ],
           "min": 0,
           "none": true
+        },
+        "Leads": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "N"
+            },
+            {
+              "name": "feature ID or target"
+            },
+            {
+              "name": "lead"
+            },
+            {
+              "name": "location",
+              "evidence": true
+            }
+          ],
+          "min": 0,
+          "none": true
         }
       }
     },
@@ -595,13 +640,38 @@
         "Leads": {
           "columns": [
             {
-              "name": "line number in leads.md"
+              "name": "lead ID"
             },
             {
               "name": "finding ID, or rejected"
             },
             {
               "name": "reason"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Dispositions": {
+          "playbooks": [
+            "plan"
+          ],
+          "columns": [
+            {
+              "name": "finding ID"
+            },
+            {
+              "name": "outcome",
+              "values": [
+                "applied",
+                "contingent",
+                "unresolved",
+                "rejected"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "reduced copy and heading, or the reason"
             }
           ],
           "min": 0,

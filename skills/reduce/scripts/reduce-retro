@@ -29,7 +29,7 @@ OPENCODE_DB = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/shar
 KINDS = ("friction", "error", "wasted-work", "wrong-result", "missed-finding", "worked")
 STEP = re.compile(r"run|\d+-[a-z]+(?::F\d+)?")  # the step cell: the ledger groups observations by step and cause
 CAUSES = ("guidance-inadequate", "guidance-not-followed", "driver", "model", "harness", "target", "none")
-TEXT, CALL, RESULT = 1200, 300, 400  # characters kept of a message, a tool call, and a failed tool result
+TEXT, CALL, RESULT, BRIEF = 1200, 300, 400, 2000  # characters kept of a message, a tool call, a failed tool result, and a subagent brief
 SLICE_LIMIT, LEDGER_LIMIT = 300, 40  # transcript entries in the parent slice, and earlier observations in the packet
 TEMPLATE = """# Retrospective
 
@@ -326,7 +326,7 @@ def slice_of(path, start, end):
     return rows
 
 
-def child_summary(path, packet):
+def child_summary(path, packet, brief):
     calls, errors, first, last, reply = 0, [], None, None, ""
     for time, role, text in entries(path):
         first, last = first or time, time or last
@@ -339,6 +339,10 @@ def child_summary(path, packet):
     lines_out = [f"### {packet}", f"- transcript: {path}", f"- model: {model_of(path)}",
                  f"- time: {first} to {last}", f"- tool calls: {calls}", f"- failed tool calls: {len(errors)}"]
     lines_out += [f"  - {error}" for error in errors[:10]]
+    brief = " ".join(brief.split())
+    if len(brief) > BRIEF:  # the limits of a brief are often at its end
+        brief = f"{brief[:BRIEF * 3 // 4]} [... {len(brief) - BRIEF} characters] {brief[-BRIEF // 4:]}"
+    lines_out.append(f"- brief: {brief or 'none'}")
     lines_out.append(f"- last reply: {short(reply, TEXT) or 'none'}")
     return lines_out
 
@@ -361,9 +365,9 @@ def collect(records):
     candidates = [(source, first_prompt(source)) for source in child_candidates(parents, start, records)]
     for packet in packets:
         absolute = str(records / packet)
-        match = [source for source, prompt in candidates if absolute in prompt]
-        for number, source in enumerate(match, 1):  # more than one is a retry, or one subagent for several packets
-            children += child_summary(source, packet + (f" (attempt {number} of {len(match)})" if len(match) > 1 else "")) + [""]
+        match = [(source, prompt) for source, prompt in candidates if absolute in prompt]
+        for number, (source, prompt) in enumerate(match, 1):  # more than one is a retry, or one subagent for several packets
+            children += child_summary(source, packet + (f" (attempt {number} of {len(match)})" if len(match) > 1 else ""), prompt) + [""]
         if not match:
             unmatched.append(packet)
 
