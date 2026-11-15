@@ -8,11 +8,11 @@
     "codex": {"cheap": null, "standard": null, "powerful": null},
     "t3": {
       "cheap": [
-        {"provider": "claude_personal", "model": "claude-haiku-5-5"},
-        {"provider": "opencode", "model": "opencode-go/deepseek-v4.1-flash"}
+        {"provider": "claude", "model": "claude-haiku-5-5"},
+        {"provider": "claude", "model": "claude-sonnet-5-5"}
       ],
-      "standard": {"provider": "claude_personal", "model": "claude-sonnet-5-5"},
-      "powerful": {"provider": "claude_personal", "model": "claude-opus-5-5"}
+      "standard": {"provider": "claude", "model": "claude-sonnet-5-5"},
+      "powerful": {"provider": "claude", "model": "claude-opus-5-5"}
     }
   }
 }

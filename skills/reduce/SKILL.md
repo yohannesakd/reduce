@@ -27,7 +27,7 @@ A quick run does steps 2 to 5 in one review, without subagents. It looks over ev
 Review the named target. Access other checkouts, deployed settings, live databases, services, or remote hosts only with assignment authorization.
 Keep records and scratch checks outside the target. Change its checkout, plan, or tracker only when implementation is requested.
 Use subagents for the map, design, and check steps, as below.
-Execute project code only with isolation that excludes credentials and unrelated data. Dispatch alone is not isolation.
+Execute project code only with isolation that excludes credentials and unrelated data. A remote job runner alone is not isolation.
 
 ## Match the target
 

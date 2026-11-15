@@ -10,10 +10,10 @@ The package has two skills:
 ## Install
 
 ```sh
-npx skills add git@github.com:yohannesakd/reduce.git -g -y
+npx skills add yohannesakd/reduce -g -y
 ```
 
-The command installs both skills in `~/.agents/skills`, and links them for each detected agent, such as Claude Code. It needs Node.js, Python 3, Git, and SSH access to this repository.
+The command installs both skills in `~/.agents/skills`, and links them for each detected agent, such as Claude Code. It needs Node.js, Python 3, and Git.
 To install for one agent only, add `--agent claude-code` or `--agent codex`.
 
 Then ask your agent to run `reduce-setup`. Without a configuration, every reduce subagent uses the parent agent's model.
