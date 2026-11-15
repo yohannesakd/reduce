@@ -168,7 +168,7 @@ The driver logs the session of each command, so the retrospective finds the tran
 2. Run `"$reduce_skill/scripts/reduce-retro" record --records "$records"`. It checks `retro/retro.md` and adds its observations to the ledger, `~/.local/state/reduce/ledger.jsonl`.
 3. Show the user the proposals. Change the skill only after the user approves a proposal.
 
-`reduce-retro list` shows each run and the state of its retrospective. The packet holds transcript text, so it stays in the records folder.
+`reduce-retro list` shows each run in the runs folder and the state of its retrospective. Give it folders to search others, such as a records folder passed with `--records`. A run from before the driver logged sessions still works: `collect` searches the transcripts for the run. The packet holds transcript text, so it stays in the records folder.
 
 ## Fixed behavior and the ladder
 

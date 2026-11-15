@@ -221,6 +221,11 @@ def model_of(source):
     return used
 
 
+def codex_files(thread):
+    """Codex rollouts by thread ID, or `*` for all: the dated sessions, and the archive where Codex moves finished ones."""
+    return [*CODEX_ROOT.glob(f"*/*/*/rollout-*-{thread}.jsonl"), *(CODEX_ROOT.parent / "archived_sessions").glob(f"rollout-*-{thread}.jsonl")]
+
+
 def session_files(log):
     """The parent transcripts that the driver's log names."""
     found = {}
@@ -232,9 +237,28 @@ def session_files(log):
                 for path in root.glob(f"projects/*/{session['CLAUDE_CODE_SESSION_ID']}.jsonl"):
                     found[path] = "claude:" + session["CLAUDE_CODE_SESSION_ID"]
         if session.get("CODEX_THREAD_ID"):
-            for path in CODEX_ROOT.glob(f"*/*/*/rollout-*-{session['CODEX_THREAD_ID']}.jsonl"):
+            for path in codex_files(session["CODEX_THREAD_ID"]):
                 found[path] = "codex:" + session["CODEX_THREAD_ID"]
     return found
+
+
+def searched_parents(records, start):
+    """For a run that logged no session, as runs before the driver logged one: the transcript that holds the output of
+    `reduce-step start` for these records. Without one, such as a run that a later session continued, the transcripts
+    that name the records and the driver; the driver makes the records folder, so one whose first prompt names it is a subagent."""
+    since, needle = start.timestamp(), str(records).encode()
+    files = [path for root in CLAUDE_ROOTS for path in root.glob("projects/*/*.jsonl")]
+    files += [*codex_files("*"), *PI_ROOT.glob("*/*.jsonl")]
+    started, named = {}, {}
+    for path in files:
+        if path.stat().st_mtime < since:
+            continue
+        data = path.read_bytes()
+        if b"Records directory: " + needle + b"." in data:
+            started[path] = "found by the output of `reduce-step start`; the run logged no session"
+        elif needle in data and b"reduce-step" in data and str(records) not in first_prompt(path):
+            named[path] = "found by a search for the records folder; the run logged no session"
+    return started or named
 
 
 def child_candidates(parents, start, records):
@@ -245,7 +269,7 @@ def child_candidates(parents, start, records):
         seen.update(parent.with_suffix("").glob("subagents/agent-*.jsonl"))
     since = start.timestamp()
     files = [path for root in CLAUDE_ROOTS for path in root.glob("projects/*/*.jsonl")]
-    files += [*CODEX_ROOT.glob("*/*/*/rollout-*.jsonl"), *PI_ROOT.glob("*/*.jsonl")]
+    files += [*codex_files("*"), *PI_ROOT.glob("*/*.jsonl")]
     seen.update(path for path in files if path.stat().st_mtime >= since)
     seen.update(OpenCodeSession(session) for (session,) in opencode_rows(
         "select distinct session_id from session_message where type = 'user' and time_created >= ? and instr(data, ?) > 0",
@@ -331,8 +355,8 @@ def collect(records):
     out = records / "retro"
     out.mkdir(exist_ok=True)
 
-    parents = session_files(log)
     packets = sorted(path.relative_to(records).as_posix() for path in records.rglob("*.packet.md"))
+    parents = session_files(log) or searched_parents(records, start)
     children, unmatched = [], []
     candidates = [(source, first_prompt(source)) for source in child_candidates(parents, start, records)]
     for packet in packets:
@@ -452,9 +476,11 @@ def record(records):
     print(f"Proposals for the user: {len(real)}. Apply a proposal only after the user approves it.")
 
 
-def list_runs():
+def list_runs(folders):
+    """The runs in the runs folder, or in the given folders and below them, newest first."""
     reviewed = {entry["records"] for entry in lines(LEDGER)} if LEDGER.exists() else set()
-    found = sorted((path.parent.parent for path in RUNS.glob("*/.reduce-step/state.json")), key=lambda path: path.stat().st_mtime, reverse=True)
+    states = [path for folder in folders for path in folder.rglob(".reduce-step/state.json")] if folders else RUNS.glob("*/.reduce-step/state.json")
+    found = sorted((path.parent.parent for path in states), key=lambda path: path.stat().st_mtime, reverse=True)
     for run in found:
         state = json.loads((run / ".reduce-step/state.json").read_text())
         steps = state["steps"].values()
@@ -462,19 +488,20 @@ def list_runs():
         status = "recorded" if str(run) in reviewed else "packet only" if (run / "retro/packet.md").exists() else "none"
         print(f"- {run} | {state['playbook']} {state.get('mode', 'unattended')} | {done} of {len(state['steps'])} released items submitted | retrospective: {status}")
     if not found:
-        print(f"No runs in {RUNS}.")
+        print(f"No runs in {', '.join(map(str, folders)) if folders else RUNS}.")
 
 
 def main():
     parser = argparse.ArgumentParser(prog="reduce-retro", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("list", help="list the runs and the state of their retrospectives")
+    listed = commands.add_parser("list", help="list the runs and the state of their retrospectives")
+    listed.add_argument("folders", nargs="*", type=Path, help=f"folders to search for runs; default: {RUNS}")
     for name, text in (("collect", "write the retrospective packet of a run"), ("record", "check retro.md and add it to the ledger")):
         commands.add_parser(name, help=text).add_argument("--records", required=True)
     args = parser.parse_args()
     try:
         if args.command == "list":
-            list_runs()
+            list_runs([folder.resolve() for folder in args.folders])
         elif args.command == "collect":
             collect(Path(args.records).resolve())
         else:
