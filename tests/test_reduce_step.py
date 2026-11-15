@@ -463,8 +463,15 @@ class ReduceStepTest(unittest.TestCase):
         reply.write_text(reply.read_text().replace("| slow |", "| friction |").replace("## Proposals\n", "## Proposals\n- none | one run\n"))
         for _ in range(2):  # a second record of the same run replaces its rows
             self.assertEqual(subprocess.run(recorded, capture_output=True, text=True, env=self.env).returncode, 0)
-        ledger = (self.records.parent / "state/reduce/ledger.jsonl").read_text().splitlines()
-        self.assertEqual([json.loads(line)["id"] for line in ledger], ["O1"])
+        ledger_path = self.records.parent / "state/reduce/ledger.jsonl"
+        self.assertEqual([json.loads(line)["id"] for line in ledger_path.read_text().splitlines()], ["O1"])
+
+        earlier = {"run": "earlier", "id": "O3", "step": "2-map:F3", "kind": "error", "cause": "driver", "observation": "late"}
+        ledger_path.write_text(json.dumps(earlier) + "\n" + ledger_path.read_text())
+        output = subprocess.run(recorded, capture_output=True, text=True, env=self.env).stdout
+        self.assertIn("- 2 runs | 2-map | driver", output)  # the same step and cause in two runs, whatever the feature
+        reply.write_text(reply.read_text().replace("- O1 | 2-map |", "- O1 | the map step |"))
+        self.assertIn("is not a step name", subprocess.run(recorded, capture_output=True, text=True, env=self.env).stderr)
 
 
 if __name__ == "__main__":

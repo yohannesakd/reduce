@@ -14,6 +14,7 @@ import importlib.util
 import json
 import os
 import re
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -23,17 +24,20 @@ STATE = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") /
 RUNS, LEDGER = STATE / "runs", STATE / "ledger.jsonl"
 CLAUDE_ROOTS = sorted({Path.home() / ".claude", *Path.home().glob(".claude?")})  # the Claude Code config folders on this host
 CODEX_ROOT = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "sessions"
+PI_ROOT = Path.home() / ".pi/agent/sessions"
+OPENCODE_DB = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "opencode/opencode.db"
 KINDS = ("friction", "error", "wasted-work", "wrong-result", "missed-finding", "worked")
+STEP = re.compile(r"run|\d+-[a-z]+(?::F\d+)?")  # the step cell: the ledger groups observations by step and cause
 CAUSES = ("guidance-inadequate", "guidance-not-followed", "driver", "model", "harness", "target", "none")
 TEXT, CALL, RESULT = 1200, 300, 400  # characters kept of a message, a tool call, and a failed tool result
-SLICE_LIMIT, LEDGER_LIMIT = 600, 40  # transcript entries in the parent slice, and earlier observations in the packet
+SLICE_LIMIT, LEDGER_LIMIT = 300, 40  # transcript entries in the parent slice, and earlier observations in the packet
 TEMPLATE = """# Retrospective
 
 ## Outcome
 <!-- One paragraph: what the user asked for, what the run delivered, and what the user did with the result. -->
 
 ## Observations
-<!-- One line per row: - <O1> | <step, or run> | <kind: {kinds}> | <cause: {causes}> | <recurs: earlier run:O IDs, or new> | <evidence: packet line, record, or transcript entry> | <observation> -->
+<!-- One line per row: - <O1> | <step: a step name such as 1-scope or 4-check:F2, or run> | <kind: {kinds}> | <cause: {causes}> | <recurs: earlier run:O IDs, or new> | <evidence: packet line, record, or transcript entry> | <observation> -->
 
 ## Proposals
 <!-- One line per row: - <P1> | <observation IDs> | <skill file> | <the change, in general words> ; or - none | <reason> -->
@@ -73,7 +77,14 @@ def skill_hash():
     return module.skill_hash()
 
 
-# Transcripts. Each reader yields (time, role, text): role is user, assistant, call, error, or result.
+# Transcripts. Each reader yields (time, role, text). The role is user, assistant, call, error, result, or model:
+# a model entry names the model that wrote the next replies.
+
+def blocks_text(body):
+    if isinstance(body, list):
+        return " ".join(part.get("text", "") for part in body if isinstance(part, dict))
+    return body or ""
+
 
 def claude_entries(path):
     for entry in lines(path):
@@ -81,6 +92,8 @@ def claude_entries(path):
         if entry.get("type") not in ("user", "assistant") or not isinstance(message, dict):
             continue
         time, content = entry.get("timestamp"), message.get("content")
+        if message.get("model"):
+            yield time, "model", message["model"]
         if isinstance(content, str):
             yield time, entry["type"], content
             continue
@@ -91,56 +104,121 @@ def claude_entries(path):
             elif kind == "tool_use":
                 yield time, "call", f"{block.get('name')} {json.dumps(block.get('input'), ensure_ascii=False)}"
             elif kind == "tool_result":
-                body = block.get("content")
-                if isinstance(body, list):
-                    body = " ".join(part.get("text", "") for part in body if isinstance(part, dict))
-                yield time, "error" if block.get("is_error") else "result", body or ""
+                yield time, "error" if block.get("is_error") else "result", blocks_text(block.get("content"))
 
 
 def codex_entries(path):
     for entry in lines(path):
         payload, time = entry.get("payload") or {}, entry.get("timestamp")
+        if entry.get("type") == "turn_context" and payload.get("model"):
+            yield time, "model", payload["model"]
         if entry.get("type") != "response_item":
             continue
         kind = payload.get("type")
         if kind == "message" and payload.get("role") in ("user", "assistant"):
-            text = " ".join(part.get("text", "") for part in payload.get("content") or [] if isinstance(part, dict))
-            yield time, payload["role"], text
+            yield time, payload["role"], blocks_text(payload.get("content"))
         elif kind in ("function_call", "custom_tool_call", "local_shell_call"):
             yield time, "call", f"{payload.get('name')} {payload.get('arguments') or payload.get('input') or payload.get('action')}"
         elif kind in ("function_call_output", "custom_tool_call_output"):
-            output = payload.get("output")
-            if isinstance(output, list):
-                output = " ".join(part.get("text", "") for part in output if isinstance(part, dict))
-            yield time, "result", output or ""
+            yield time, "result", blocks_text(payload.get("output"))
 
 
-def entries(path):
-    return codex_entries(path) if path.name.startswith("rollout-") else claude_entries(path)
+def pi_entries(path):
+    for entry in lines(path):
+        message, time = entry.get("message") or {}, entry.get("timestamp")
+        role = message.get("role")
+        if entry.get("type") != "message" or role not in ("user", "assistant", "toolResult"):
+            continue
+        if message.get("model"):
+            yield time, "model", message["model"]
+        if role == "toolResult":
+            yield time, "error" if message.get("isError") else "result", blocks_text(message.get("content"))
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            yield time, role, content
+            continue
+        for block in content or []:
+            if block.get("type") == "text":
+                yield time, role, block.get("text", "")
+            elif block.get("type") == "toolCall":
+                yield time, "call", f"{block.get('name')} {json.dumps(block.get('arguments'), ensure_ascii=False)}"
 
 
-def first_prompt(path):
-    for _, role, text in entries(path):
+class OpenCodeSession:
+    """An OpenCode session: its messages are rows of OpenCode's database, not a file."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def __str__(self):
+        return f"{OPENCODE_DB} session {self.session}"
+
+    def __eq__(self, other):
+        return isinstance(other, OpenCodeSession) and other.session == self.session
+
+    def __hash__(self):
+        return hash(self.session)
+
+    def __lt__(self, other):
+        return str(self) < str(other)
+
+    def entries(self):
+        for kind, data in opencode_rows("select type, data from session_message where session_id = ? order by seq", self.session):
+            message = json.loads(data)
+            time = datetime.datetime.fromtimestamp(message.get("time", {}).get("created", 0) / 1000, datetime.timezone.utc).isoformat()
+            if kind == "user":
+                yield time, "user", message.get("text", "")
+            elif kind == "assistant":
+                model = message.get("model") or {}
+                if model.get("id"):
+                    yield time, "model", f"{model.get('providerID')}/{model['id']}"
+                for part in message.get("content") or []:
+                    if part.get("type") == "text":
+                        yield time, "assistant", part.get("text", "")
+                    elif part.get("type") == "tool":
+                        state = part.get("state") or {}
+                        yield time, "call", f"{part.get('name')} {json.dumps(state.get('input'), ensure_ascii=False)}"
+                        if state.get("status") == "error":
+                            yield time, "error", str(state.get("error") or state.get("content"))
+
+
+def opencode_rows(query, *values):
+    """Read OpenCode's message table only. The database also holds credentials, which a retrospective never reads."""
+    if not OPENCODE_DB.exists():
+        return []
+    connection = sqlite3.connect(f"file:{OPENCODE_DB}?mode=ro", uri=True)
+    try:
+        return connection.execute(query, values).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        connection.close()
+
+
+def entries(source):
+    if isinstance(source, OpenCodeSession):
+        return source.entries()
+    if source.name.startswith("rollout-"):
+        return codex_entries(source)
+    return pi_entries(source) if source.is_relative_to(PI_ROOT) else claude_entries(source)
+
+
+def first_prompt(source):
+    for _, role, text in entries(source):
         if role == "user" and not text.startswith("# AGENTS.md instructions"):
             return text
     return ""
 
 
-def model_of(path):
-    """The model that answered, from the transcript, and the model that the parent asked for, from Claude's meta file.
-    The meta file's `pickedEffortModel` can name the parent's model, so it is not evidence of the answering model."""
-    meta = path.with_suffix(".meta.json")
-    asked = json.loads(meta.read_text()).get("model") if meta.exists() else None
-    used = "unknown"
-    for entry in lines(path):
-        payload = entry.get("payload") or {}
-        if entry.get("type") == "turn_context" and payload.get("model"):
-            used = payload["model"]
-            break
-        if entry.get("type") == "assistant" and (entry.get("message") or {}).get("model"):
-            used = entry["message"]["model"]
-            break
-    return f"{used} (asked for: {asked or 'the default'})" if meta.exists() else used
+def model_of(source):
+    """The model that answered, from the transcript. For a Claude subagent, also the model that the parent asked for,
+    from its meta file. That file's `pickedEffortModel` can name the parent's model, so it is not evidence."""
+    used = next((text for _, role, text in entries(source) if role == "model"), "unknown")
+    meta = source.with_suffix(".meta.json") if isinstance(source, Path) else None
+    if meta and meta.exists():
+        return f"{used} (asked for: {json.loads(meta.read_text()).get('model') or 'the default'})"
+    return used
 
 
 def session_files(log):
@@ -159,17 +237,20 @@ def session_files(log):
     return found
 
 
-def child_candidates(parents, start):
-    """Transcripts that a packet could have started: Claude subagents of a parent session, and sessions that began
-    during the run, such as T3 or Codex children."""
+def child_candidates(parents, start, records):
+    """Transcripts that a packet could have started: the Claude subagents of a parent session, and the Claude, Codex,
+    Pi, and OpenCode sessions that changed during the run, such as T3 children."""
     seen = set()
     for parent in parents:
         seen.update(parent.with_suffix("").glob("subagents/agent-*.jsonl"))
     since = start.timestamp()
-    for root in CLAUDE_ROOTS:
-        seen.update(path for path in root.glob("projects/*/*.jsonl") if path.stat().st_mtime >= since)
-    seen.update(path for path in CODEX_ROOT.glob("*/*/*/rollout-*.jsonl") if path.stat().st_mtime >= since)
-    return sorted(seen - set(parents))
+    files = [path for root in CLAUDE_ROOTS for path in root.glob("projects/*/*.jsonl")]
+    files += [*CODEX_ROOT.glob("*/*/*/rollout-*.jsonl"), *PI_ROOT.glob("*/*.jsonl")]
+    seen.update(path for path in files if path.stat().st_mtime >= since)
+    seen.update(OpenCodeSession(session) for (session,) in opencode_rows(
+        "select distinct session_id from session_message where type = 'user' and time_created >= ? and instr(data, ?) > 0",
+        int(since * 1000), str(records)))
+    return sorted(seen - set(parents), key=str)
 
 
 # The packet.
@@ -211,7 +292,7 @@ def slice_of(path, start, end):
         kept.insert(0, request)
     rows = []
     for time, role, text in kept:
-        if role == "result":
+        if role in ("result", "model"):
             continue  # successful tool output: the records and the timeline already hold its effect
         size = {"call": CALL, "error": RESULT}.get(role, TEXT)
         rows.append(f"- {time} | {role} | {short(text, size)}")
@@ -253,13 +334,13 @@ def collect(records):
     parents = session_files(log)
     packets = sorted(path.relative_to(records).as_posix() for path in records.rglob("*.packet.md"))
     children, unmatched = [], []
-    candidates = [(path, first_prompt(path)) for path in child_candidates(parents, start)]
+    candidates = [(source, first_prompt(source)) for source in child_candidates(parents, start, records)]
     for packet in packets:
         absolute = str(records / packet)
-        match = [path for path, prompt in candidates if absolute in prompt or packet in prompt and str(records) in prompt]
-        if match:
-            children += child_summary(match[0], packet) + [""]
-        else:
+        match = [source for source, prompt in candidates if absolute in prompt]
+        for number, source in enumerate(match, 1):  # more than one is a retry, or one subagent for several packets
+            children += child_summary(source, packet + (f" (attempt {number} of {len(match)})" if len(match) > 1 else "")) + [""]
+        if not match:
             unmatched.append(packet)
 
     current = skill_hash()
@@ -339,6 +420,8 @@ def record(records):
         number, step, kind, cause, recurs, evidence, observation = cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], " | ".join(cells[6:])
         if not re.fullmatch(r"O\d+", number):
             errors.append(f"{number}: an observation ID is O and a number.")
+        if not STEP.fullmatch(step):
+            errors.append(f"{number}: step {step!r} is not a step name, such as 4-check or 4-check:F2, or `run`.")
         if kind not in KINDS:
             errors.append(f"{number}: kind {kind!r} is not one of {', '.join(KINDS)}.")
         if cause not in CAUSES:
@@ -359,7 +442,7 @@ def record(records):
     counts = {}
     for entry in earlier + added:
         if entry["kind"] != "worked":
-            key = (entry["step"], entry["cause"])
+            key = (entry["step"].partition(":")[0], entry["cause"])  # the step without its feature
             counts.setdefault(key, set()).add(entry["run"])
     recurring = sorted(((len(runs), key) for key, runs in counts.items() if len(runs) > 1), reverse=True)
     if recurring:

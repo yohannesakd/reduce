@@ -28,5 +28,6 @@ Read the records and the transcripts that the packet names when an observation n
 7. **R.7** Write each proposal in general words. The skill's repository is public: do not put the target's names, paths, code, or the user's words in a proposal.
 8. **R.8** In `## Not visible`, record the evidence that the packet did not hold, such as a subagent session on another host.
 
+In the step column, write one step name, such as `1-scope` or `4-check:F2`, or `run` for the whole run. The ledger counts recurrence by step and cause.
 Every row cites its evidence: a timeline line, a record, or a transcript entry with its time.
 The user decides each proposal. Apply an approved proposal in the skill's maintained source, not in an installed copy.

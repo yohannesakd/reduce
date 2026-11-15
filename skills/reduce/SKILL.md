@@ -164,7 +164,7 @@ The driver logs the session of each command, so the retrospective finds the tran
 "$reduce_skill/scripts/reduce-retro" collect --records "$records"
 ```
 
-1. Give a subagent only the task that `collect` prints. Without subagents, do it yourself.
+1. Give a subagent of the `standard` class only the task that `collect` prints. Without subagents, do it yourself.
 2. Run `"$reduce_skill/scripts/reduce-retro" record --records "$records"`. It checks `retro/retro.md` and adds its observations to the ledger, `~/.local/state/reduce/ledger.jsonl`.
 3. Show the user the proposals. Change the skill only after the user approves a proposal.
 
