@@ -140,8 +140,8 @@ Run `"$reduce_skill/scripts/reduce-step" config` to validate the file and print 
 | `checks` | One folder for each topic, and one file for each check. The index lists each topic's checks in order. Some checks are sourced real cases. |
 | `evidence` | How to collect and judge evidence: tools, execution checks, and cases where shorter code changed behavior. |
 | `design` | The design references that the design step applies, from pstack and Matt Pocock's `codebase-design`. Their licenses are in [design/LICENSES.md](design/LICENSES.md). |
-| `guides` | Fixed behavior and the ladder, the sources of the cases, rules for the plan playbook, and the workflow and phase rules that the steps cite. |
-| `scripts` | The step driver. |
+| `guides` | Fixed behavior and the ladder, the sources of the cases, rules for the plan playbook, the workflow and phase rules that the steps cite, and the retrospective. |
+| `scripts` | The step driver, and `reduce-retro`, which collects a run's evidence for a retrospective. |
 
 ## Words in the references
 
@@ -154,6 +154,21 @@ The checks, evidence, and guides keep the words of their sources. Read them with
 | group, section | Features or plan parts that share an owner or acceptance context |
 | recommendation | A finding |
 | inventory, entry | The map step's `## Inventory` or `## Requirements` rows |
+
+## Retrospective
+
+A retrospective finds what a run teaches about this skill. Run one after a run closes, or at any time for a run that is open or stopped.
+The driver logs the session of each command, so the retrospective finds the transcripts of the parent and its subagents.
+
+```sh
+"$reduce_skill/scripts/reduce-retro" collect --records "$records"
+```
+
+1. Give a subagent only the task that `collect` prints. Without subagents, do it yourself.
+2. Run `"$reduce_skill/scripts/reduce-retro" record --records "$records"`. It checks `retro/retro.md` and adds its observations to the ledger, `~/.local/state/reduce/ledger.jsonl`.
+3. Show the user the proposals. Change the skill only after the user approves a proposal.
+
+`reduce-retro list` shows each run and the state of its retrospective. The packet holds transcript text, so it stays in the records folder.
 
 ## Fixed behavior and the ladder
 

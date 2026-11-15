@@ -4,7 +4,7 @@ Reduce is an agent skill that finds what a code change, codebase, or implementat
 
 The package has two skills:
 
-- `reduce` runs the review in gated steps with its driver, `skills/reduce/scripts/reduce-step`.
+- `reduce` runs the review in gated steps with its driver, `skills/reduce/scripts/reduce-step`. After a run, `skills/reduce/scripts/reduce-retro` collects the driver log, the records, and the transcripts of the parent and its subagents for a retrospective.
 - `reduce-setup` asks which models the reduce subagents use, then writes `~/.config/reduce/config.json`.
 
 ## Install

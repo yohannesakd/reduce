@@ -50,6 +50,8 @@ FINDINGS_TABLE = "## Findings by feature"
 FINDING_COLUMNS = ("id", "rung", "effect", "decision", "entries", "location", "finding")
 TABLES_START = "<!-- reduce-step tables: the driver rewrites this block -->"
 TABLES_END = "<!-- end of reduce-step tables -->"
+# The session that ran each command. A retrospective finds the transcripts of the run with these values.
+SESSION_ENV = ("CLAUDE_CODE_SESSION_ID", "CLAUDE_CONFIG_DIR", "CODEX_THREAD_ID", "T3CODE_THREAD_ID", "AI_AGENT")
 
 
 class Failure(Exception):
@@ -66,6 +68,12 @@ def now():
 
 def sha256(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def skill_hash():
+    """The version of the skill files, so a retrospective can tell whether the skill changed after a run."""
+    files = sorted(path for path in SKILL.rglob("*") if path.is_file() and "__pycache__" not in path.parts)
+    return sha256(b"".join(path.relative_to(SKILL).as_posix().encode() + b"\0" + path.read_bytes() for path in files))[:16]
 
 
 def git(target, *args):
@@ -199,7 +207,8 @@ class Run:
 
     def log(self, event, **fields):
         with (self.dir / "log.jsonl").open("a") as stream:
-            stream.write(json.dumps({"time": now(), "event": event, **fields}) + "\n")
+            session = {name: os.environ[name] for name in SESSION_ENV if os.environ.get(name)}
+            stream.write(json.dumps({"time": now(), "event": event, **fields, "session": session}) + "\n")
 
     def spec(self, step):
         """One step's definition, resolved for this run's playbook."""
@@ -549,6 +558,8 @@ class Run:
         found = self.resolve(key)
         if found is None:
             print("All steps are complete.")
+            retro = Path(__file__).resolve().parent / "reduce-retro"
+            print(f"To review how this run went, run: {shlex.quote(str(retro))} collect --records {shlex.quote(str(self.records))}")
             return
         step, item = found
         record, text = self.open(step, item)
@@ -935,10 +946,10 @@ def start(args):
     state_path.parent.mkdir(parents=True, exist_ok=True)
     taken = snapshot(target)
     state = {"run_id": sha256(f"{target}{records}{now()}".encode())[:16], "playbook": args.playbook, "mode": args.mode, "target": str(target),
-             "records": str(records), "started": now(), "snapshot": taken, "steps": {}}
+             "records": str(records), "started": now(), "skill": skill_hash(), "snapshot": taken, "steps": {}}
     state_path.write_text(json.dumps(state, indent=2) + "\n")
     run = Run(records)
-    run.log("start", playbook=args.playbook, mode=args.mode, target=str(target), **taken)
+    run.log("start", playbook=args.playbook, mode=args.mode, target=str(target), skill=state["skill"], **taken)
     print(f"Started the {args.playbook} playbook in {args.mode} mode on {target}")
     print(f"Records directory: {records}. Pass it as --records to every later command.")
     print(f"Revision: {taken['head']}")

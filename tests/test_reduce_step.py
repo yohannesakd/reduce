@@ -424,6 +424,48 @@ class ReduceStepTest(unittest.TestCase):
         self.assertIn("=== Step 6-close |", self.run_step("submit").stdout)
         self.assertEqual([row["id"] for row in json.loads(self.run_step("findings").stdout)], ["X1"])
 
+    def test_retrospective_finds_the_sessions_and_the_subagent_of_each_packet(self):
+        home = self.records.parent / "home"
+        session = "11111111-2222-3333-4444-555555555555"
+        claude = home / ".claudep"
+        self.env.update(HOME=str(home), CLAUDE_CONFIG_DIR=str(claude), CLAUDE_CODE_SESSION_ID=session)
+        self.env.pop("CODEX_HOME", None)
+        self.submit_scope()
+        self.run_step("release")
+        log = [json.loads(line) for line in (self.records / ".reduce-step/log.jsonl").read_text().splitlines()]
+        self.assertEqual({entry["session"]["CLAUDE_CODE_SESSION_ID"] for entry in log}, {session})
+        self.assertRegex(log[0]["skill"], r"^[0-9a-f]{16}$")
+
+        def transcript(path, *entries):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("".join(json.dumps({"type": kind, "timestamp": log[-1]["time"], "message": {"content": text}}) + "\n"
+                                    for kind, text in entries))
+        parent = claude / "projects/-work" / f"{session}.jsonl"
+        transcript(parent, ("user", "reduce app.py"), ("assistant", "Started the run."))
+        packet = self.record("2-map", "F1").with_suffix(".packet.md")
+        transcript(parent.with_suffix("") / "subagents/agent-a1.jsonl",
+                   ("user", f"Read {packet}. Follow it, and write your reply in {self.record('2-map', 'F1')}."), ("assistant", "Wrote the map."))
+        retro = [sys.executable, str(SKILL / "scripts/reduce-retro")]
+        output = subprocess.run([*retro, "collect", "--records", str(self.records)], capture_output=True, text=True, env=self.env)
+        self.assertEqual(output.returncode, 0, output.stderr)
+        self.assertIn("Subagents matched: 1 of 2 packets.", output.stdout)
+        text = (self.records / "retro/packet.md").read_text()
+        self.assertIn(f"claude:{session}: {parent}", text)
+        self.assertIn("| user | reduce app.py", text)
+        self.assertIn("- last reply: Wrote the map.", text)
+        self.assertIn(f"- no transcript for {packet.relative_to(self.records).as_posix().replace('F1-run', 'F2-other')}", text)
+
+        reply = self.records / "retro/retro.md"
+        recorded = [*retro, "record", "--records", str(self.records)]
+        self.assertIn("## Observations has no rows", subprocess.run(recorded, capture_output=True, text=True, env=self.env).stderr)
+        reply.write_text(reply.read_text().replace("## Observations\n", "## Observations\n- O1 | 2-map | slow | driver | new | log | late\n"))
+        self.assertIn("kind 'slow'", subprocess.run(recorded, capture_output=True, text=True, env=self.env).stderr)
+        reply.write_text(reply.read_text().replace("| slow |", "| friction |").replace("## Proposals\n", "## Proposals\n- none | one run\n"))
+        for _ in range(2):  # a second record of the same run replaces its rows
+            self.assertEqual(subprocess.run(recorded, capture_output=True, text=True, env=self.env).returncode, 0)
+        ledger = (self.records.parent / "state/reduce/ledger.jsonl").read_text().splitlines()
+        self.assertEqual([json.loads(line)["id"] for line in ledger], ["O1"])
+
 
 if __name__ == "__main__":
     unittest.main()

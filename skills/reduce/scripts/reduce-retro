@@ -1,0 +1,405 @@
+#!/usr/bin/env python3
+"""Collect the evidence of one reduce run for a retrospective, and keep the lessons of every run in a ledger.
+
+`collect` writes `retro/packet.md` in the run's records: the driver's timeline, the records, the parent session's
+part of its transcript, and the transcript of each subagent that a packet started. It finds the transcripts from the
+session values that the driver logs with each command, and it matches a subagent by the packet path in its first prompt.
+`record` checks `retro/retro.md` and puts its observations in the ledger. `list` shows the runs and their retrospectives.
+Everything stays in the local state folder: the packet holds transcript text."""
+
+import argparse
+import datetime
+import importlib.machinery
+import importlib.util
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+SKILL = Path(__file__).resolve().parent.parent
+GUIDE = SKILL / "guides/retrospective.md"
+STATE = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "reduce"
+RUNS, LEDGER = STATE / "runs", STATE / "ledger.jsonl"
+CLAUDE_ROOTS = sorted({Path.home() / ".claude", *Path.home().glob(".claude?")})  # the Claude Code config folders on this host
+CODEX_ROOT = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "sessions"
+KINDS = ("friction", "error", "wasted-work", "wrong-result", "missed-finding", "worked")
+CAUSES = ("guidance-inadequate", "guidance-not-followed", "driver", "model", "harness", "target", "none")
+TEXT, CALL, RESULT = 1200, 300, 400  # characters kept of a message, a tool call, and a failed tool result
+SLICE_LIMIT, LEDGER_LIMIT = 600, 40  # transcript entries in the parent slice, and earlier observations in the packet
+TEMPLATE = """# Retrospective
+
+## Outcome
+<!-- One paragraph: what the user asked for, what the run delivered, and what the user did with the result. -->
+
+## Observations
+<!-- One line per row: - <O1> | <step, or run> | <kind: {kinds}> | <cause: {causes}> | <recurs: earlier run:O IDs, or new> | <evidence: packet line, record, or transcript entry> | <observation> -->
+
+## Proposals
+<!-- One line per row: - <P1> | <observation IDs> | <skill file> | <the change, in general words> ; or - none | <reason> -->
+
+## Not visible
+<!-- What the packet did not show, and how a later run could show it. -->
+"""
+
+
+class Failure(Exception):
+    pass
+
+
+def when(text):
+    return datetime.datetime.fromisoformat(text.replace("Z", "+00:00")) if text else None
+
+
+def short(text, size):
+    text = " ".join(str(text).split())
+    return text if len(text) <= size else text[:size] + f" [... {len(text) - size} more characters]"
+
+
+def lines(path):
+    with path.open(errors="replace") as stream:
+        for line in stream:
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+
+def skill_hash():
+    """The driver's hash of the skill files. The driver file has no `.py` suffix, so load it by path."""
+    loader = importlib.machinery.SourceFileLoader("reduce_step", str(SKILL / "scripts/reduce-step"))
+    module = importlib.util.module_from_spec(importlib.util.spec_from_loader("reduce_step", loader))
+    loader.exec_module(module)
+    return module.skill_hash()
+
+
+# Transcripts. Each reader yields (time, role, text): role is user, assistant, call, error, or result.
+
+def claude_entries(path):
+    for entry in lines(path):
+        message = entry.get("message") or {}
+        if entry.get("type") not in ("user", "assistant") or not isinstance(message, dict):
+            continue
+        time, content = entry.get("timestamp"), message.get("content")
+        if isinstance(content, str):
+            yield time, entry["type"], content
+            continue
+        for block in content or []:
+            kind = block.get("type")
+            if kind == "text":
+                yield time, entry["type"], block.get("text", "")
+            elif kind == "tool_use":
+                yield time, "call", f"{block.get('name')} {json.dumps(block.get('input'), ensure_ascii=False)}"
+            elif kind == "tool_result":
+                body = block.get("content")
+                if isinstance(body, list):
+                    body = " ".join(part.get("text", "") for part in body if isinstance(part, dict))
+                yield time, "error" if block.get("is_error") else "result", body or ""
+
+
+def codex_entries(path):
+    for entry in lines(path):
+        payload, time = entry.get("payload") or {}, entry.get("timestamp")
+        if entry.get("type") != "response_item":
+            continue
+        kind = payload.get("type")
+        if kind == "message" and payload.get("role") in ("user", "assistant"):
+            text = " ".join(part.get("text", "") for part in payload.get("content") or [] if isinstance(part, dict))
+            yield time, payload["role"], text
+        elif kind in ("function_call", "custom_tool_call", "local_shell_call"):
+            yield time, "call", f"{payload.get('name')} {payload.get('arguments') or payload.get('input') or payload.get('action')}"
+        elif kind in ("function_call_output", "custom_tool_call_output"):
+            output = payload.get("output")
+            if isinstance(output, list):
+                output = " ".join(part.get("text", "") for part in output if isinstance(part, dict))
+            yield time, "result", output or ""
+
+
+def entries(path):
+    return codex_entries(path) if path.name.startswith("rollout-") else claude_entries(path)
+
+
+def first_prompt(path):
+    for _, role, text in entries(path):
+        if role == "user" and not text.startswith("# AGENTS.md instructions"):
+            return text
+    return ""
+
+
+def model_of(path):
+    """The model that answered, from the transcript, and the model that the parent asked for, from Claude's meta file.
+    The meta file's `pickedEffortModel` can name the parent's model, so it is not evidence of the answering model."""
+    meta = path.with_suffix(".meta.json")
+    asked = json.loads(meta.read_text()).get("model") if meta.exists() else None
+    used = "unknown"
+    for entry in lines(path):
+        payload = entry.get("payload") or {}
+        if entry.get("type") == "turn_context" and payload.get("model"):
+            used = payload["model"]
+            break
+        if entry.get("type") == "assistant" and (entry.get("message") or {}).get("model"):
+            used = entry["message"]["model"]
+            break
+    return f"{used} (asked for: {asked or 'the default'})" if meta.exists() else used
+
+
+def session_files(log):
+    """The parent transcripts that the driver's log names."""
+    found = {}
+    for entry in log:
+        session = entry.get("session") or {}
+        if session.get("CLAUDE_CODE_SESSION_ID"):
+            roots = [Path(session["CLAUDE_CONFIG_DIR"])] if session.get("CLAUDE_CONFIG_DIR") else CLAUDE_ROOTS
+            for root in roots:
+                for path in root.glob(f"projects/*/{session['CLAUDE_CODE_SESSION_ID']}.jsonl"):
+                    found[path] = "claude:" + session["CLAUDE_CODE_SESSION_ID"]
+        if session.get("CODEX_THREAD_ID"):
+            for path in CODEX_ROOT.glob(f"*/*/*/rollout-*-{session['CODEX_THREAD_ID']}.jsonl"):
+                found[path] = "codex:" + session["CODEX_THREAD_ID"]
+    return found
+
+
+def child_candidates(parents, start):
+    """Transcripts that a packet could have started: Claude subagents of a parent session, and sessions that began
+    during the run, such as T3 or Codex children."""
+    seen = set()
+    for parent in parents:
+        seen.update(parent.with_suffix("").glob("subagents/agent-*.jsonl"))
+    since = start.timestamp()
+    for root in CLAUDE_ROOTS:
+        seen.update(path for path in root.glob("projects/*/*.jsonl") if path.stat().st_mtime >= since)
+    seen.update(path for path in CODEX_ROOT.glob("*/*/*/rollout-*.jsonl") if path.stat().st_mtime >= since)
+    return sorted(seen - set(parents))
+
+
+# The packet.
+
+def timeline(log):
+    rows, last = [], None
+    for entry in log:
+        time = when(entry["time"])
+        gap = f"+{int((time - last).total_seconds())}s" if last else "start"
+        last = time
+        item = ":".join(part for part in (entry.get("step"), entry.get("item")) if part)
+        detail = ""
+        if entry["event"] == "rejected":
+            detail = "; ".join(entry.get("errors", []))
+        elif entry["event"] == "submit" and entry.get("notes"):
+            detail = f"{len(entry['notes'])} notes: " + "; ".join(entry["notes"])
+        elif entry["event"] == "start":
+            detail = f"{entry.get('playbook')} playbook, {entry.get('mode')} mode, skill {entry.get('skill', 'not logged')}"
+        rows.append(f"- {entry['time']} | {gap} | {entry['event']} | {item or '-'} | {short(detail, RESULT) or '-'}")
+    return rows
+
+
+def slice_of(path, start, end):
+    """The parent's transcript from the request that started the run to the first user message after its last command,
+    or to the retrospective itself."""
+    kept, request = [], None
+    for time, role, text in entries(path):
+        moment = when(time)
+        if moment is None:
+            continue
+        if moment < start:
+            if role == "user":
+                request = (time, role, text)
+            continue
+        if moment > end and (role == "user" or role == "call" and "reduce-retro" in text):
+            break
+        kept.append((time, role, text))
+    if request:
+        kept.insert(0, request)
+    rows = []
+    for time, role, text in kept:
+        if role == "result":
+            continue  # successful tool output: the records and the timeline already hold its effect
+        size = {"call": CALL, "error": RESULT}.get(role, TEXT)
+        rows.append(f"- {time} | {role} | {short(text, size)}")
+    if len(rows) > SLICE_LIMIT:
+        cut = len(rows) - SLICE_LIMIT
+        rows = rows[:SLICE_LIMIT // 2] + [f"- [{cut} entries left out]"] + rows[-SLICE_LIMIT // 2:]
+    return rows
+
+
+def child_summary(path, packet):
+    calls, errors, first, last, reply = 0, [], None, None, ""
+    for time, role, text in entries(path):
+        first, last = first or time, time or last
+        if role == "call":
+            calls += 1
+        elif role == "error":
+            errors.append(short(text, CALL))
+        elif role == "assistant" and text.strip():
+            reply = text
+    lines_out = [f"### {packet}", f"- transcript: {path}", f"- model: {model_of(path)}",
+                 f"- time: {first} to {last}", f"- tool calls: {calls}", f"- failed tool calls: {len(errors)}"]
+    lines_out += [f"  - {error}" for error in errors[:10]]
+    lines_out.append(f"- last reply: {short(reply, TEXT) or 'none'}")
+    return lines_out
+
+
+def collect(records):
+    state_path = records / ".reduce-step/state.json"
+    if not state_path.exists():
+        raise Failure(f"No reduce run in {records}.")
+    state = json.loads(state_path.read_text())
+    log = list(lines(records / ".reduce-step/log.jsonl"))
+    if not log:
+        raise Failure(f"{records} has no driver log.")
+    start, end = when(log[0]["time"]), when(log[-1]["time"])
+    out = records / "retro"
+    out.mkdir(exist_ok=True)
+
+    parents = session_files(log)
+    packets = sorted(path.relative_to(records).as_posix() for path in records.rglob("*.packet.md"))
+    children, unmatched = [], []
+    candidates = [(path, first_prompt(path)) for path in child_candidates(parents, start)]
+    for packet in packets:
+        absolute = str(records / packet)
+        match = [path for path, prompt in candidates if absolute in prompt or packet in prompt and str(records) in prompt]
+        if match:
+            children += child_summary(match[0], packet) + [""]
+        else:
+            unmatched.append(packet)
+
+    current = skill_hash()
+    ran = state.get("skill", "not logged")
+    done = [key for key, entry in state["steps"].items() if entry.get("submitted")]
+    open_items = [key for key, entry in state["steps"].items() if not entry.get("submitted")]
+    finished = any(key.endswith("-close") for key in done)
+    record_files = sorted(path.relative_to(records).as_posix() for path in records.rglob("*.md")
+                          if ".reduce-step" not in path.parts and "retro" not in path.parts)
+    earlier = [entry for entry in lines(LEDGER) if entry.get("run") != state["run_id"]] if LEDGER.exists() else []
+
+    text = [
+        "# Reduce retrospective packet", "",
+        f"Read [the retrospective guide]({GUIDE}) and follow it. Write your reply in {out / 'retro.md'}.",
+        "The records named below are in the records folder. Read the ones that an observation needs.", "",
+        "## Run",
+        f"- records: {records}",
+        f"- run: {state['run_id']} | {state['playbook']} playbook | {state.get('mode', 'unattended')} mode",
+        f"- target: {state['target']}",
+        f"- skill at the run: {ran} | skill now: {current}" + (
+            "" if ran == current else " | the skill changed after the run: read the current file before you propose a change"),
+        f"- submitted: {', '.join(done) or 'none'}",
+        f"- released and not submitted: {', '.join(open_items) or 'none'}",
+        f"- finished: {'yes' if finished else 'no. The run is open or stopped: the timeline shows its last event'}", "",
+        "## Driver timeline",
+        "<!-- time | gap since the previous event | event | item | rejection errors, notes, or start values -->",
+        *timeline(log), "",
+        "## Records",
+        *[f"- {name}" for name in record_files], "",
+        "## Parent sessions",
+        *([f"- {ref}: {path}" for path, ref in parents.items()] or
+          ["- none found: the driver did not log a session, or its transcript is not on this host"]), "",
+    ]
+    for path in parents:
+        text += [f"## Parent transcript: {path.name}",
+                 "<!-- time | user, assistant, call, or error. Successful tool output is left out. -->",
+                 *slice_of(path, start, end), ""]
+    text += ["## Subagents", *children]
+    text += [f"- no transcript for {packet}: the parent did it, or its session is on another host" for packet in unmatched]
+    text += ["", "## Earlier observations", "<!-- run | skill | step | kind | cause | observation. Use them for the recurs column. -->"]
+    text += [f"- {entry['run']}:{entry['id']} | {entry.get('skill')} | {entry['step']} | {entry['kind']} | {entry['cause']} | "
+             f"{short(entry['observation'], CALL)}" for entry in earlier[-LEDGER_LIMIT:]] or ["- none"]
+    packet = out / "packet.md"
+    packet.write_text("\n".join(text) + "\n")
+    reply = out / "retro.md"
+    if not reply.exists():
+        reply.write_text(TEMPLATE.format(kinds=", ".join(KINDS), causes=", ".join(CAUSES)))
+    print(f"Packet: {packet} ({len(text)} lines)")
+    print(f"Reply: {reply}")
+    print(f"Parent sessions: {len(parents)}. Subagents matched: {len(packets) - len(unmatched)} of {len(packets)} packets.")
+    print(f'Give a reviewer only this task: "Read {packet}. Follow it, and write your reply in {reply}."')
+    print(f"Then run: {Path(__file__).resolve()} record --records {records}")
+
+
+# The ledger.
+
+def rows(text, section):
+    match = re.search(rf"^## {re.escape(section)}\n(.*?)(?=^## |\Z)", re.sub(r"<!--.*?-->", "", text, flags=re.S), re.M | re.S)
+    return [[cell.strip() for cell in line[2:].split("|")] for line in (match.group(1) if match else "").splitlines()
+            if line.startswith("- ") and "|" in line]
+
+
+def record(records):
+    state = json.loads((records / ".reduce-step/state.json").read_text())
+    reply = records / "retro/retro.md"
+    if not reply.exists():
+        raise Failure(f"No {reply}. Run `collect` first.")
+    text = reply.read_text()
+    errors, kept = [], []
+    observations = rows(text, "Observations")
+    if not observations:
+        errors.append("## Observations has no rows.")
+    for cells in observations:
+        if len(cells) < 7:
+            errors.append(f"An observation needs 7 cells: {' | '.join(cells)}")
+            continue
+        number, step, kind, cause, recurs, evidence, observation = cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], " | ".join(cells[6:])
+        if not re.fullmatch(r"O\d+", number):
+            errors.append(f"{number}: an observation ID is O and a number.")
+        if kind not in KINDS:
+            errors.append(f"{number}: kind {kind!r} is not one of {', '.join(KINDS)}.")
+        if cause not in CAUSES:
+            errors.append(f"{number}: cause {cause!r} is not one of {', '.join(CAUSES)}.")
+        kept.append({"id": number, "step": step, "kind": kind, "cause": cause, "recurs": recurs,
+                     "evidence": evidence, "observation": observation})
+    proposals = rows(text, "Proposals")
+    if not proposals:
+        errors.append("## Proposals has no rows. Write `- none | <reason>` when there is no proposal.")
+    if errors:
+        raise Failure(f"{reply} is not complete:\n" + "\n".join(f"- {error}" for error in errors))
+    earlier = [entry for entry in lines(LEDGER) if entry.get("run") != state["run_id"]] if LEDGER.exists() else []
+    time = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    added = [{"run": state["run_id"], "skill": state.get("skill"), "records": str(records), "time": time, **entry} for entry in kept]
+    STATE.mkdir(parents=True, exist_ok=True)
+    LEDGER.write_text("".join(json.dumps(entry) + "\n" for entry in earlier + added))
+    print(f"Recorded {len(added)} observations of run {state['run_id']} in {LEDGER}.")
+    counts = {}
+    for entry in earlier + added:
+        if entry["kind"] != "worked":
+            key = (entry["step"], entry["cause"])
+            counts.setdefault(key, set()).add(entry["run"])
+    recurring = sorted(((len(runs), key) for key, runs in counts.items() if len(runs) > 1), reverse=True)
+    if recurring:
+        print("Recurring step and cause, by the number of runs:")
+        print("\n".join(f"- {number} runs | {step} | {cause}" for number, (step, cause) in recurring))
+    real = [cells for cells in proposals if cells[0] != "none"]
+    print(f"Proposals for the user: {len(real)}. Apply a proposal only after the user approves it.")
+
+
+def list_runs():
+    reviewed = {entry["records"] for entry in lines(LEDGER)} if LEDGER.exists() else set()
+    found = sorted((path.parent.parent for path in RUNS.glob("*/.reduce-step/state.json")), key=lambda path: path.stat().st_mtime, reverse=True)
+    for run in found:
+        state = json.loads((run / ".reduce-step/state.json").read_text())
+        steps = state["steps"].values()
+        done = sum(1 for entry in steps if entry.get("submitted"))
+        status = "recorded" if str(run) in reviewed else "packet only" if (run / "retro/packet.md").exists() else "none"
+        print(f"- {run} | {state['playbook']} {state.get('mode', 'unattended')} | {done} of {len(state['steps'])} released items submitted | retrospective: {status}")
+    if not found:
+        print(f"No runs in {RUNS}.")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="reduce-retro", description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("list", help="list the runs and the state of their retrospectives")
+    for name, text in (("collect", "write the retrospective packet of a run"), ("record", "check retro.md and add it to the ledger")):
+        commands.add_parser(name, help=text).add_argument("--records", required=True)
+    args = parser.parse_args()
+    try:
+        if args.command == "list":
+            list_runs()
+        elif args.command == "collect":
+            collect(Path(args.records).resolve())
+        else:
+            record(Path(args.records).resolve())
+    except Failure as failure:
+        print(f"reduce-retro: {failure}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
