@@ -1,0 +1,618 @@
+{
+  "playbooks": [
+    "code",
+    "codebase",
+    "plan"
+  ],
+  "full": [
+    "1-scope",
+    "2-map",
+    "3-design",
+    "4-check",
+    "5-report",
+    "6-close"
+  ],
+  "quick": [
+    "1-scope",
+    "2-quick",
+    "6-close"
+  ],
+  "always_check": {
+    "every": [
+      "every-feature"
+    ],
+    "code": [
+      "unrelated-changes"
+    ],
+    "codebase": [],
+    "plan": [
+      "plans"
+    ]
+  },
+  "steps": {
+    "1-scope": {
+      "title": "Scope",
+      "per": "target",
+      "file": {
+        "code": "1-scope/code.md",
+        "codebase": "1-scope/codebase.md",
+        "plan": "1-scope/plan.md"
+      },
+      "cover": {
+        "code": "changed",
+        "codebase": "tracked"
+      },
+      "sections": {
+        "Revisions": {
+          "playbooks": [
+            "code"
+          ],
+          "columns": [
+            {
+              "name": "base"
+            },
+            {
+              "name": "head"
+            }
+          ],
+          "min": 1
+        },
+        "Features": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "F"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "paths"
+            },
+            {
+              "name": "entry points",
+              "evidence": true
+            }
+          ],
+          "plan_columns": [
+            {
+              "name": "id",
+              "prefix": "F"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "paths and entries"
+            }
+          ],
+          "min": 1
+        },
+        "Excluded": {
+          "playbooks": [
+            "code",
+            "codebase"
+          ],
+          "columns": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "reason"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Sources": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "S"
+            },
+            {
+              "name": "authority",
+              "values": [
+                "user",
+                "external",
+                "target"
+              ]
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "the goal that it states, in its words"
+            },
+            {
+              "name": "evidence",
+              "evidence": true
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Tool results": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "L"
+            },
+            {
+              "name": "feature",
+              "prefix": "F"
+            },
+            {
+              "name": "tool and result"
+            },
+            {
+              "name": "evidence",
+              "evidence": true
+            }
+          ],
+          "min": 0,
+          "none": true
+        }
+      }
+    },
+    "2-quick": {
+      "title": "Quick review",
+      "per": "target",
+      "file": "2-quick.md",
+      "record": "review.md",
+      "packet": true,
+      "instruction_records": false,
+      "sections": {
+        "Intent": {
+          "prose": "The core intent in one paragraph: the problem, for whom, and the result that shows that it works.",
+          "min": 1
+        },
+        "Capabilities": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "C"
+            },
+            {
+              "name": "need",
+              "values": [
+                "core",
+                "supporting",
+                "questioned"
+              ]
+            },
+            {
+              "name": "capability"
+            },
+            {
+              "name": "entries"
+            },
+            {
+              "name": "source",
+              "evidence": true
+            }
+          ],
+          "min": 1
+        },
+        "Inventory": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "B"
+            },
+            {
+              "name": "feature"
+            },
+            {
+              "name": "class",
+              "values": [
+                "required",
+                "incidental",
+                "unknown"
+              ]
+            },
+            {
+              "name": "result and consumers"
+            },
+            {
+              "name": "evidence",
+              "evidence": true
+            }
+          ],
+          "min": 1
+        },
+        "From scratch": {
+          "prose": "How you would build the target from scratch, knowing the current implementation, and how it differs.",
+          "min": 1
+        },
+        "Checks": {
+          "columns": "4-check:Checks",
+          "min": 1
+        },
+        "Findings": {
+          "columns": "4-check:Findings",
+          "min": 0,
+          "none": true
+        },
+        "Report": {
+          "prose": "The verdict and coverage gaps, the main parity and intent findings, and the decisions for the user.",
+          "min": 1
+        }
+      }
+    },
+    "2-map": {
+      "title": "Map",
+      "per": "feature",
+      "file": {
+        "code": "2-map/code.md",
+        "codebase": "2-map/code.md",
+        "plan": "2-map/plan.md"
+      },
+      "sections": {
+        "Inventory": {
+          "playbooks": [
+            "code",
+            "codebase"
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "B"
+            },
+            {
+              "name": "result and consumers"
+            },
+            {
+              "name": "evidence",
+              "evidence": true
+            }
+          ],
+          "min": 1
+        },
+        "Requirements": {
+          "playbooks": [
+            "plan"
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "R"
+            },
+            {
+              "name": "kind",
+              "values": [
+                "accepted",
+                "kept",
+                "added-by-plan",
+                "delivery-gap",
+                "question"
+              ]
+            },
+            {
+              "name": "requirement or result"
+            },
+            {
+              "name": "evidence",
+              "evidence": true
+            }
+          ],
+          "min": 1
+        },
+        "Intent": {
+          "playbooks": [
+            "code",
+            "codebase"
+          ],
+          "prose": "One paragraph: what the feature gives, to whom, and why it was added, with the evidence. Then each part whose reason you did not find.",
+          "min": 1
+        },
+        "Questions": {
+          "playbooks": [
+            "code",
+            "codebase"
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "Q"
+            },
+            {
+              "name": "question"
+            },
+            {
+              "name": "what you found",
+              "evidence": true
+            },
+            {
+              "name": "answer, or unanswered"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Unmapped": {
+          "playbooks": [
+            "code",
+            "codebase"
+          ],
+          "columns": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "reason"
+            }
+          ],
+          "min": 0,
+          "none": true
+        }
+      }
+    },
+    "3-design": {
+      "title": "Design review",
+      "per": "target",
+      "file": "3-design.md",
+      "sections": {
+        "Purpose": {
+          "prose": "One paragraph: the problem that the target solves, for whom, and the result that shows that it works. Then the cause of the problem, for the code and plan playbooks.",
+          "min": 1
+        },
+        "Capabilities": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "C"
+            },
+            {
+              "name": "need",
+              "values": [
+                "core",
+                "supporting",
+                "questioned"
+              ]
+            },
+            {
+              "name": "capability"
+            },
+            {
+              "name": "features"
+            },
+            {
+              "name": "source",
+              "evidence": true
+            }
+          ],
+          "min": 1
+        },
+        "From scratch": {
+          "prose": "What the current implementation showed. Then, for each feature and for the whole target: how you would build it from scratch, knowing the current implementation."
+        },
+        "Shared concepts": {
+          "prose": "Owners, types, helpers, and other concepts across features, and the red flags that you found."
+        },
+        "Findings": {
+          "columns": "4-check:Findings",
+          "min": 0,
+          "none": true
+        },
+        "Decisions": {
+          "columns": [
+            {
+              "name": "finding",
+              "prefix": "X"
+            },
+            {
+              "name": "question"
+            },
+            {
+              "name": "recommendation"
+            },
+            {
+              "name": "answer, or unanswered"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Directions": {
+          "columns": [
+            {
+              "name": "feature",
+              "prefix": "F"
+            },
+            {
+              "name": "direction"
+            },
+            {
+              "name": "findings"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Plan": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "P"
+            },
+            {
+              "name": "findings"
+            },
+            {
+              "name": "features"
+            },
+            {
+              "name": "depends on"
+            },
+            {
+              "name": "blocking decisions"
+            },
+            {
+              "name": "proof check"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Parent review": {
+          "prose": "The parent fills this section after it checks the document against the code: what it confirmed, changed, and added. The design subagent leaves it empty.",
+          "min": 1
+        }
+      },
+      "record": "design.md",
+      "delegate": true,
+      "instruction_records": false
+    },
+    "4-check": {
+      "title": "Check",
+      "per": "feature",
+      "file": "4-check.md",
+      "instruction_records": false,
+      "sections": {
+        "Checks": {
+          "columns": [
+            {
+              "name": "check"
+            },
+            {
+              "name": "result"
+            },
+            {
+              "name": "place",
+              "evidence": true
+            },
+            {
+              "name": "what you looked at"
+            }
+          ],
+          "min": 1
+        },
+        "Findings": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "X"
+            },
+            {
+              "name": "rung",
+              "values": [
+                "remove",
+                "prevent",
+                "reuse",
+                "simplify",
+                "keep",
+                "unresolved"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "effect",
+              "values": [
+                "parity",
+                "intent"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "decision",
+              "values": [
+                "autonomous",
+                "user"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "entries"
+            },
+            {
+              "name": "location",
+              "evidence": true
+            },
+            {
+              "name": "finding and proposed change"
+            }
+          ],
+          "min": 0,
+          "none": true
+        }
+      }
+    },
+    "5-report": {
+      "title": "Report",
+      "per": "target",
+      "file": "5-report.md",
+      "review": true,
+      "sections": {
+        "Whole-target findings": {
+          "columns": [
+            {
+              "name": "id",
+              "prefix": "W"
+            },
+            {
+              "name": "rung",
+              "values": [
+                "remove",
+                "prevent",
+                "reuse",
+                "simplify",
+                "keep",
+                "unresolved"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "effect",
+              "values": [
+                "parity",
+                "intent"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "decision",
+              "values": [
+                "autonomous",
+                "user"
+              ],
+              "enforce": true
+            },
+            {
+              "name": "entries"
+            },
+            {
+              "name": "location",
+              "evidence": true
+            },
+            {
+              "name": "finding and proposed change"
+            }
+          ],
+          "min": 0,
+          "none": true
+        },
+        "Leads": {
+          "columns": [
+            {
+              "name": "line number in leads.md"
+            },
+            {
+              "name": "finding ID, or rejected"
+            },
+            {
+              "name": "reason"
+            }
+          ],
+          "min": 0,
+          "none": true
+        }
+      }
+    },
+    "6-close": {
+      "title": "Close",
+      "per": "target",
+      "file": "6-close.md"
+    }
+  }
+}

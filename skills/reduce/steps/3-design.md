@@ -1,0 +1,38 @@
+# Design review
+
+Judge the whole target from a higher level than one feature, before one reviewer checks each feature. Each check packet holds the document that you write, so every reviewer works from its purpose, findings, decisions, and directions.
+
+Read the scope record and every map record that this packet lists. The scope record gives the features, the sources with the goals that they state, and the tool results. A map record gives one feature's results, their consumers, what the feature is for, and the user's answers about it. A record tells you where to look. It does not decide a finding: read the code in the target for each shared concept, and before you write each finding. Do not change the target.
+
+No earlier step judged the target. You state its purpose, and you decide what it needs.
+Start skeptical: the target probably does not need a capability until a source or a consumer shows the need.
+
+Apply every design reference in this table. Read each one before you start:
+
+| Design reference | Use |
+|---|---|
+| [design-red-flags](../design/design-red-flags.md) | Red flags across features |
+| [codebase-design](../design/codebase-design.md) | Module, interface, seam, depth, and the deletion test |
+| [redesign-from-first-principles](../design/redesign-from-first-principles.md) | A requirement added to an existing design |
+| [exhaust-the-design-space](../design/exhaust-the-design-space.md) | Several plausible designs |
+| [attack-the-premise](../design/attack-the-premise.md) | Repeated fixes at one boundary |
+
+1. **3.1** In `## Purpose`, state the purpose in one paragraph: the problem that the target solves, for whom, and the observable result that shows that it works. Use the goals that the scope record quotes, and cite their IDs (`S<n>`). Use the `## Intent` of each map record for what each feature gives. A goal of a `user` or `external` source shows a need, and so does an answer of the user in a map record's `## Questions` (cite it as `F<n>:Q<n>`). An answer that names an entry of another map record shows a consumer, not a need. An unanswered question shows no need. A statement of a `target` source describes the target, and does not show that the target is needed. Label a deduction from the code as an inference. For the code and plan playbooks, trace the cause of the stated problem at its owner or producer, and record whether the target solves it there.
+2. **3.2** List the capabilities in `## Capabilities`. A capability is one thing that a user, caller, operator, or other program can do or observe because of the target, such as "the phone report includes the last 300 presses". Name what it gives, not the code that gives it. Split a capability when one part has its own cost, its own consumer, or its own source. List the features that carry it. Give each capability one need:
+   - `core`: the purpose fails without it.
+   - `supporting`: a `user` or `external` source needs it.
+   - `questioned`: only `target` sources or inferences support it, or no user, caller, or operator would notice its removal.
+
+   A map entry that fits no capability but has a consumer becomes a new `questioned` capability. When a smaller capability gives the same result to the same people, such as one report in place of two, or a fixed value in place of a setting, record it in the row of the capability that it would replace.
+3. **3.3** In `## From scratch`, make a second pass over the design. The current implementation is the first pass. Record what it showed: what the problem needs, and where the design became complex. Then answer one question for each feature, and for the whole target: "Knowing the current implementation, how would you build this from scratch?" Use only the `core` and `supporting` capabilities. Choose owners and data shapes before files, and describe them in the words of [codebase-design](../design/codebase-design.md). Include structure across features, even where the features share nothing today. When the target adds a requirement to existing code, design as if the requirement had been there from the start.
+4. **3.4** In `## Shared concepts`, describe each concept that more than one feature defines, reads, or writes: an owner, type, helper, list, schema, setting, state, or protocol. Name the features and the place that defines it. Look for the red flags across features: split ownership, two ways to do one task, a hand-synced list, leaked information, and a pass-through layer. Look for a helper or type that one feature adds and another feature could use. Trace each tool result of the scope record that crosses features.
+5. **3.5** When the choice between designs is important and the evidence does not settle it, sketch two or three different designs and compare them. When the map records show repeated fixes at one boundary, state the assumption that they share, and test a simpler design against it. Otherwise, record in `## From scratch` why one design is enough.
+6. **3.6** Compare the from-scratch design with the current design: owners, interfaces, data shapes, layers, state, and duplicated rules. The current design keeps a part only when evidence shows that the part is better. For each difference, go down [the ladder](../guides/fixed-behavior.md#the-ladder), and record a finding in `## Findings`. Number the findings from X1. Cite entries as `F<n>:B<n>` and capabilities as `C<n>`.
+7. **3.7** Write an `intent` finding for each `questioned` capability, each smaller capability, and each map entry that serves no capability and has no consumer: its removal or its replacement. Name the entries that serve only it. Its decision is `autonomous` when the capability is clearly useless: no `user` or `external` source names it, no consumer outside the target shows, sends, stores, or decides something with its results, and its removal breaks no contract. Otherwise, its decision is `user`. For the code playbook, write no such finding for code that the change does not add or change.
+8. **3.8** In `## Decisions`, give one row to each finding with the decision `user`. Write one question: what the part gives, what its removal or replacement saves, and what would stop working. Recommend removal or the smaller design, unless a `user` or `external` source, or a consumer outside the target, shows the need. Cite that need when you recommend keeping. Write `unanswered` as the answer. Do not ask again what the user answered in a map record. Order the rows by saving, largest first. In attended mode, the parent asks the user these questions and records the answers here.
+9. **3.9** In `## Directions`, write what the reviewer of each affected feature must know: an owner in another feature to use, a part that a design finding replaces, or a capability that a finding questions.
+10. **3.10** In `## Plan`, write the order in which to make the findings' changes. Give each phase its findings, the features that it changes, the phases that it depends on, the decisions that block it, and the check that proves it. Write no code.
+
+Leave `## Parent review` empty. The parent fills it after it checks this document against the code.
+
+Write the document for a person who decides what to change and for the reviewers who read it next. Use short sentences with active verbs. Give one fact or instruction in each sentence. Define each term that the code does not define.

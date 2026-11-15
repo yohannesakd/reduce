@@ -1,0 +1,1002 @@
+#!/usr/bin/env python3
+"""Release the reduce steps one at a time, and accept each record before the next.
+
+The driver rejects a record only when a later step cannot use it: a missing section, a feature without files,
+a changed file outside every feature, a row ID without its prefix, or a check without a line. It reports other
+problems as notes, and it does not judge content or citation form.
+
+The map and check steps have one item for each feature, and the design step has one item for the whole target.
+A quick run has three steps: scope, one quick review of the whole target that the parent does itself, and close.
+The driver writes a packet for each: the map packet holds the feature; the design packet lists the records to read;
+the check packet holds the feature's code, its map record, the design document, and the other features. A second
+file holds the checks: the reviewer applies them, and then does an open review for what no check covered.
+One subagent reads a packet and writes one reply. The driver names the model class for each packet from the user's `config.json`.
+`release` and `--item` let several agents work on the items of one step at the same time. A lock serializes the commands."""
+
+import argparse
+import datetime
+import fcntl
+import hashlib
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+SKILL = Path(__file__).resolve().parent.parent
+STEPS = SKILL / "steps"
+CHECKS = SKILL / "checks"
+# The configuration and the run records stay outside the skill folder, which an install copies and replaces.
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "reduce/config.json"
+RUNS = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "reduce/runs"
+MODES, MODEL_CLASSES = ("unattended", "attended", "quick"), ("cheap", "standard", "powerful")
+STEP_CLASSES = {"map": "standard", "design": "standard", "checks": "cheap"}  # the default class of each delegated step
+MAP_SUBAGENTS = ("feature", "one")  # one map subagent for each feature, or one for all the features
+HARNESSES = ("claude-code", "codex", "t3")  # the tools that start subagents: Agent, spawn_agent, and delegate_task
+CONFIG_KEYS = (*STEP_CLASSES, "map_subagents", "models")
+SCOPE_STEP, QUICK_STEP, MAP_STEP = "1-scope", "2-quick", "2-map"
+DESIGN_STEP, CHECK_STEP, REPORT_STEP, CLOSE_STEP = "3-design", "4-check", "5-report", "6-close"
+TOOL_RESULTS = "every-feature/tool-results"  # the check that closes the tool results of the scope step
+OPEN_REVIEW = "open-review"  # the `## Checks` line for the review that no check limits
+DIFF_LIMIT = 3000  # lines of diff that a packet holds inline
+INSTRUCTION = re.compile(r"^\s*\d+\.\s+\*\*(\d+\.\d+)\*\*", re.M)
+COMMENT = re.compile(r"<!--.*?-->", re.S)
+LINE_REF = re.compile(r"^(?P<path>[^\s:][^:]*?)(?::(?P<start>\d+)(?:-(?P<end>\d+))?)?$")
+PATH_REF = re.compile(r"(?<![\w/.@+-])((?:\.{0,2}/)?[\w@+-][\w@.+-]*(?:/[\w@.+-]+)*\.[A-Za-z][A-Za-z0-9]*):(\d+)(?:-(\d+))?")
+TABLE = "## Check results"
+FINDINGS_TABLE = "## Findings by feature"
+FINDING_COLUMNS = ("id", "rung", "effect", "decision", "entries", "location", "finding")
+TABLES_START = "<!-- reduce-step tables: the driver rewrites this block -->"
+TABLES_END = "<!-- end of reduce-step tables -->"
+
+
+class Failure(Exception):
+    pass
+
+
+class NotReady(Exception):
+    """An item list depends on a record that is not submitted yet."""
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def git(target, *args):
+    result = subprocess.run(["git", "-C", str(target), *args], capture_output=True)
+    if result.returncode != 0:
+        raise Failure(f"git {' '.join(args)} failed in {target}: {result.stderr.decode().strip()}")
+    return result.stdout
+
+
+def git_ok(target, *args):
+    return subprocess.run(["git", "-C", str(target), *args], capture_output=True).returncode == 0
+
+
+def names(output):
+    return {name for name in output.decode().split("\0") if name}
+
+
+def snapshot(target):
+    return {
+        "head": git(target, "rev-parse", "HEAD").decode().strip(),
+        "edits_sha256": sha256(git(target, "diff", "--binary", "--no-ext-diff", "--no-textconv", "HEAD")),
+        "untracked_sha256": sha256(git(target, "ls-files", "--others", "--exclude-standard", "-z")),
+    }
+
+
+def definitions():
+    return json.loads((STEPS / "steps.json").read_text())
+
+
+def check_config(found, source):
+    """The configuration contract. Every run reads the file through it, and reduce-setup validates a draft with it."""
+    if not isinstance(found, dict):
+        raise Failure(f"{source} must hold a JSON object.")
+    unknown = sorted(set(found) - set(CONFIG_KEYS))
+    if unknown:
+        raise Failure(f"{source}: unknown key {', '.join(unknown)}. Use {', '.join(CONFIG_KEYS)}.")
+    for key, default in STEP_CLASSES.items():
+        if found.get(key, default) not in MODEL_CLASSES:
+            raise Failure(f"{source}: `{key}` must be one of {', '.join(MODEL_CLASSES)}.")
+    if found.get("map_subagents", MAP_SUBAGENTS[0]) not in MAP_SUBAGENTS:
+        raise Failure(f"{source}: `map_subagents` must be one of {', '.join(MAP_SUBAGENTS)}.")
+    models = found.get("models", {})
+    if not isinstance(models, dict):
+        raise Failure(f"{source}: `models` must be an object with a key for each harness.")
+    for harness, classes in models.items():
+        if harness not in HARNESSES:
+            raise Failure(f"{source}: `models.{harness}` is not a harness. Use {', '.join(HARNESSES)}.")
+        if not isinstance(classes, dict) or not set(classes) <= set(MODEL_CLASSES):
+            raise Failure(f"{source}: `models.{harness}` must map {', '.join(MODEL_CLASSES)} to models.")
+        for name, value in classes.items():
+            if value is None:
+                continue
+            for choice in value if isinstance(value, list) and value else [value]:
+                valid = (isinstance(choice, dict) and set(choice) == {"provider", "model"}
+                         and all(isinstance(part, str) and part for part in choice.values())) if harness == "t3" \
+                    else isinstance(choice, str) and bool(choice)
+                if not valid:
+                    form = '{"provider": "...", "model": "..."}' if harness == "t3" else "a model name"
+                    raise Failure(f"{source}: `models.{harness}.{name}` must be null, {form}, or a non-empty list of them.")
+    return found
+
+
+def config(path=None):
+    """The user's configuration, or {} when it does not exist: every subagent then uses the parent's model."""
+    path = path or CONFIG
+    if not path.exists():
+        return {}
+    try:
+        found = json.loads(path.read_text())
+    except json.JSONDecodeError as error:
+        raise Failure(f"{path} is not valid JSON: {error}. Fix it, or use the reduce-setup skill to write it again.")
+    return check_config(found, path)
+
+
+def show_config(args):
+    """Validate a configuration file, and print the class and the models that each delegated step uses."""
+    path = Path(args.file).resolve() if args.file else CONFIG
+    found = config(path)
+    models = found.get("models", {})
+    print(json.dumps({
+        "file": str(path), "exists": path.exists(),
+        **{key: found.get(key, default) for key, default in STEP_CLASSES.items()},
+        "attended_design": "powerful", "map_subagents": found.get("map_subagents", MAP_SUBAGENTS[0]),
+        "models": {harness: {name: models.get(harness, {}).get(name) for name in MODEL_CLASSES} for harness in HARNESSES},
+        "null": "the parent's own model",
+    }, indent=2))
+
+
+def slug(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40].strip("-") or "feature"
+
+
+def pattern(check):
+    """The check's Signal or Look for line, which tells the reviewer whether to read the check."""
+    found = re.search(r"^\*\*(?:Signal|Look for)\.\*\*\s*(.+)$", (CHECKS / f"{check}.md").read_text(), re.M)
+    return found[1].strip() if found else None
+
+
+def index_topics():
+    """Each topic folder that the index lists, in index order, with its description line."""
+    text = (CHECKS / "README.md").read_text()
+    return {match[1]: match[2].strip() for match in re.finditer(r"^### `([^`]+)`\n\n(.+)$", text, re.M)}
+
+
+def folder_checks(folder):
+    """The checks of one folder, in the order that the index lists them, then any file that the index does not list."""
+    index = (CHECKS / "README.md").read_text()
+    section = re.search(rf"^### `{re.escape(folder)}`$(.*?)(?=^### |\Z)", index, re.M | re.S)
+    listed = re.findall(r"^- \[[^\]]+\]\(([^)\s]+)\.md\)", section[1], re.M) if section else []
+    rest = [f"{folder}/{path.stem}" for path in sorted((CHECKS / folder).glob("*.md"))]
+    return list(dict.fromkeys(listed + rest))
+
+
+class Run:
+    def __init__(self, records):
+        self.records = Path(records).resolve()
+        self.dir = self.records / ".reduce-step"
+        self.state_path = self.dir / "state.json"
+        if not self.state_path.exists():
+            raise Failure(f"No reduce run in {self.records}. Run `reduce-step start` first.")
+        self.state = json.loads(self.state_path.read_text())
+        self.defs = definitions()
+        self.target = Path(self.state["target"])
+        self.playbook = self.state["playbook"]
+        self.mode = self.state.get("mode", MODES[0])
+        self.expanded = {}
+        self.base = None
+
+    def save(self):
+        self.state_path.write_text(json.dumps(self.state, indent=2) + "\n")
+
+    def log(self, event, **fields):
+        with (self.dir / "log.jsonl").open("a") as stream:
+            stream.write(json.dumps({"time": now(), "event": event, **fields}) + "\n")
+
+    def spec(self, step):
+        """One step's definition, resolved for this run's playbook."""
+        spec = dict(self.defs["steps"][step])
+        sections = {}
+        for name, section in spec.get("sections", {}).items():
+            if self.playbook in section.get("playbooks", [self.playbook]):
+                section = dict(section)
+                if isinstance(section.get("columns"), str):  # "<step>:<section>" reuses that section's columns
+                    other, _, title = section["columns"].partition(":")
+                    section["columns"] = self.defs["steps"][other]["sections"][title]["columns"]
+                if self.playbook == "plan" and "plan_columns" in section:
+                    section["columns"] = section["plan_columns"]
+                sections[name] = section
+        spec["sections"] = sections
+        spec["cover"] = spec.get("cover", {}).get(self.playbook)
+        return spec
+
+    def steps(self):
+        return self.defs["quick" if self.mode == "quick" else "full"]
+
+    def step_file(self, step):
+        file = self.defs["steps"][step]["file"]
+        return STEPS / (file[self.playbook] if isinstance(file, dict) else file)
+
+    def key(self, step, item):
+        return step if item is None else f"{step}:{item}"
+
+    def record_path(self, step, item):
+        if item is None:
+            return self.records / self.defs["steps"][step].get("record", f"{step}.md")
+        row = self.feature_row(item)
+        return self.records / step / f"{item}-{slug(row[1] if len(row) > 1 else item)}.md"
+
+    def packet_path(self, step, feature):
+        return self.record_path(step, feature).with_suffix(".packet.md")
+
+    def checks_path(self, step, feature):
+        return self.record_path(step, feature).with_suffix(".checks.md")
+
+    def lead_rule(self):
+        leads = self.records / "leads.md"
+        return (f"When you see a possible reduction outside this task, or a suspected defect that is not a reduction, "
+                f"do not follow it. Append one line to {leads}: `- <feature ID or target> | <lead> | <path:line>`. "
+                f"Skip a lead that this packet or {leads} already names.")
+
+    def first_finding(self, feature):
+        """Each feature numbers its findings from its own hundred, so that parallel reviewers do not share IDs."""
+        return f"X{100 * (self.items('feature').index(feature) + 1) + 1}"
+
+    # Items for later steps come from the scope record: its features.
+    def items(self, kind):
+        if kind == "target":
+            return [None]
+        if kind == "feature":
+            self.require_submitted(SCOPE_STEP)
+            return [row[0] for row in self.rows(self.record_path(SCOPE_STEP, None), "Features")]
+        raise Failure(f"Unknown item kind {kind}")
+
+    def always(self):
+        """The checks that run for every feature of this playbook. An entry is a folder or one check."""
+        entries = self.defs["always_check"]["every"] + self.defs["always_check"][self.playbook]
+        return [check for entry in entries for check in ([entry] if "/" in entry else folder_checks(entry))]
+
+    def choices(self):
+        """The topics that a review looks over: every indexed topic that does not always apply to some playbook."""
+        folders = {entry for entries in self.defs["always_check"].values() for entry in entries if "/" not in entry}
+        return [topic for topic in index_topics() if topic not in folders]
+
+    def checks(self, feature=None):
+        """Every check of one feature's review, or of the quick review: the checks that always run, then every check of every topic.
+        The tool-results check needs a tool result."""
+        self.require_submitted(SCOPE_STEP)
+        checks = self.always() + [check for topic in self.choices() for check in folder_checks(topic)]
+        return list(dict.fromkeys(check for check in checks if check != TOOL_RESULTS or self.tool_rows(feature)))
+
+    def tool_rows(self, feature=None):
+        """The tool results that the scope step gave to one feature, or all of them for the quick review."""
+        return [row for row in self.rows(self.record_path(SCOPE_STEP, None), "Tool results")
+                if not feature or len(row) > 1 and re.search(rf"\b{re.escape(feature)}\b", row[1])]
+
+    def require_submitted(self, key):
+        if not self.state["steps"].get(key, {}).get("submitted"):
+            raise NotReady(key)
+
+    def rows(self, path, section):
+        return [row for row in rows_of(COMMENT.sub("", path.read_text()), section) if row[0].lower() != "none"]
+
+    def feature_row(self, feature):
+        rows = rows_of(COMMENT.sub("", self.record_path(SCOPE_STEP, None).read_text()), "Features")
+        return next((row for row in rows if row[0] == feature), [feature, feature])
+
+    def current(self):
+        for step in self.steps():
+            for item in self.items(self.spec(step)["per"]):  # earlier steps are submitted here, so their items are known
+                if not self.state["steps"].get(self.key(step, item), {}).get("submitted"):
+                    return step, item
+        return None
+
+    def label(self, step, item):
+        if item is None:
+            return f"Step {step}"
+        row = self.feature_row(item)
+        return f"Step {step} for {item} {row[1] if len(row) > 1 else ''}".rstrip()
+
+    def files(self, pathspec):
+        """Target files that one `paths` entry names: tracked, untracked, and, for the code playbook, deleted since the base."""
+        path = LINE_REF.match(pathspec)
+        path = path["path"] if path else pathspec
+        key = (path, self.base)
+        if key not in self.expanded:
+            spec = f":(glob){path}"
+            found = names(git(self.target, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", spec))
+            if self.base:
+                found |= names(git(self.target, "diff", "--relative", "--name-only", "-z", "--diff-filter=D", self.base, "--", spec))
+            self.expanded[key] = found
+        return self.expanded[key]
+
+    def changed(self):
+        return (names(git(self.target, "diff", "--relative", "--name-only", "-z", self.base))
+                | names(git(self.target, "ls-files", "-z", "--others", "--exclude-standard")))
+
+    def deleted(self):
+        return names(git(self.target, "diff", "--relative", "--name-only", "-z", "--diff-filter=D", self.base)) if self.base else set()
+
+    def covered(self, rows, column):
+        files = set()
+        for row in rows:
+            if len(row) > column:
+                for entry in split_cell(row[column]):
+                    files |= self.files(entry)
+        return files
+
+    def check_coverage(self, cover, text):
+        """Every file of the target or change is in a feature or in `## Excluded`."""
+        if cover == "tracked":
+            expected = self.files(".")
+        elif self.base:
+            expected = self.changed()
+        else:
+            return []  # the Revisions error reports the missing base
+        missing = sorted(expected - self.covered(rows_of(text, "Features"), 2) - self.covered(rows_of(text, "Excluded"), 0))
+        if not missing:
+            return []
+        shown = ", ".join(missing[:20]) + (f", and {len(missing) - 20} more" if len(missing) > 20 else "")
+        return [f"{len(missing)} file(s) are in no feature and not in `## Excluded`: {shown}."]
+
+    def check_target(self):
+        if snapshot(self.target) != self.state["snapshot"]:
+            raise Failure("The target changed since `start`: its HEAD, existing edits, or untracked files differ. "
+                          "Restore the target, or start a new run.")
+
+    def load_base(self, text=None):
+        if self.playbook != "code":
+            return
+        if text is None:
+            path = self.record_path(SCOPE_STEP, None)
+            if not path.exists():
+                return
+            text = COMMENT.sub("", path.read_text())
+        rows = rows_of(text, "Revisions")
+        found = re.search(r"\b[0-9a-f]{7,40}\b", rows[0][0]) if rows else None
+        if found and git_ok(self.target, "cat-file", "-e", f"{found[0]}^{{commit}}"):
+            self.base = found[0]
+            self.expanded = {}
+
+    def instructions(self, step, item):
+        """The text that the driver prints: the step, then the feature. For the check step, this text is the packet."""
+        source = self.step_file(step)
+        text = relink(source.read_text(), source)
+        if item is None and self.spec(step).get("delegate"):
+            return self.target_packet(step, text)
+        if step == QUICK_STEP:
+            return self.quick_packet(text)
+        if item is None:
+            return text
+        if step == CHECK_STEP:
+            return self.packet(text, item)
+        row = self.feature_row(item)
+        context = [f"## Feature {item}: {row[1]}", ""]
+        if len(row) > 2:
+            context.append(f"Paths: {row[2]}")
+        if len(row) > 3:
+            context.append(f"Entry points: {row[3]}")
+        context += [f"Target checkout: {self.target}. Paths are relative to it, and a file outside it has a `../` path. Do not change the target.",
+                    f"Scope record, for the sources: {self.record_path(SCOPE_STEP, None)}",
+                    f"Write your record in: {self.record_path(step, item)}. The file already has the form below. "
+                    "Fill it in place: keep every heading and field, and add nothing else.", "",
+                    "```markdown", template(self.label(step, item), text, self.spec(step)).rstrip(), "```"]
+        return text + "\n" + "\n".join(context) + "\n"
+
+    def target_packet(self, step, text):
+        """The packet of a step that one subagent does for the whole target: the step, the run, and the records to read."""
+        record = self.record_path(step, None)
+        maps = [self.record_path(MAP_STEP, feature) for feature in self.items("feature")]
+        lines = [text.rstrip(), "", "## Run", "",
+                 f"Target checkout: {self.target}. Paths are relative to it, and a file outside it has a `../` path. Do not change the target.",
+                 f"This run is in {self.mode} mode.",
+                 f"Write your document in: {record}. The file already has the form below. "
+                 "Fill it in place: keep every heading.", self.lead_rule(), "",
+                 "```markdown", template(self.label(step, None), "", self.spec(step)).rstrip(), "```",
+                 "", "## Records to read", "",
+                 f"- Scope record: {self.record_path(SCOPE_STEP, None)}"]
+        lines += [f"- Map record of {feature}: {path}" for feature, path in zip(self.items("feature"), maps)]
+        return "\n".join(lines) + "\n"
+
+    def quick_packet(self, text):
+        """The quick review: the step, the record form, and each feature's files. The checks are in a second file."""
+        self.load_base()
+        lines = [text.rstrip(), "", "## Run", "",
+                 f"Target checkout: {self.target}. Paths are relative to it, and a file outside it has a `../` path. Do not change the target.",
+                 f"Write your record in: {self.record_path(QUICK_STEP, None)}. The file already has the form below. "
+                 "Fill it in place: keep every heading.", "",
+                 "```markdown", template(self.label(QUICK_STEP, None), "", self.spec(QUICK_STEP)).rstrip(), "```",
+                 "", f"Read the scope record for the sources, the tool results, and the limits: {self.record_path(SCOPE_STEP, None)}"]
+        for row in rows_of(COMMENT.sub("", self.record_path(SCOPE_STEP, None).read_text()), "Features"):
+            lines += ["", f"## Feature {row[0]}: {row[1]}", ""]
+            if len(row) > 3:
+                lines += [f"Entry points: {row[3]}", ""]
+            lines += self.code(row, inline=False)
+        lines += ["", "## Checks", "", f"Checks file: {self.checks_path(QUICK_STEP, None)}. Read it only after your open review."]
+        return "\n".join(lines) + "\n"
+
+    def checks_file(self, feature=None):
+        """A checks file: the checks that always run, in full, then the file and pattern of each check of every topic."""
+        full = [check for check in self.checks(feature) if check in self.always()]
+        title = f"feature {feature}: {self.feature_row(feature)[1]}" if feature else "the quick review"
+        lines = [f"# Checks for {title}", "", "## Checks that always apply", "",
+                 f"Apply these {len(full)} checks: " + ", ".join(f"`{check}`" for check in full) + "."]
+        for check in full:
+            path = CHECKS / f"{check}.md"
+            lines += ["", f"### Check `{check}`", "", demote(relink(path.read_text(), path).strip(), 3)]
+        lines += ["", "## Topics to look over", "",
+                  ("Give each check one line in `## Checks`. When no pattern of a topic appears, give the topic one line in place of its checks. "
+                   if feature else "Give each topic one line in `## Checks`. ") +
+                  "Start each line with the name of the check or the topic, as this file writes it. Do not nest the lines. "
+                  "Each line below is one check of the topic: its name, its file, then its pattern. "
+                  "Read a check's file only when its pattern appears.", ""]
+        for topic in self.choices():
+            lines.append(f"- `{topic}`: {index_topics()[topic]}")
+            lines += [f"  - `{check}` ({CHECKS / f'{check}.md'}): {relink(pattern(check) or check, CHECKS / f'{check}.md')}"
+                      for check in folder_checks(topic)]
+        return "\n".join(lines) + "\n"
+
+    def model(self, step):
+        """The model class for the subagents of a step: the design step uses the powerful class in attended mode."""
+        key = {MAP_STEP: "map", DESIGN_STEP: "design", CHECK_STEP: "checks"}.get(step)
+        if key is None:
+            return "cheap"
+        if step == DESIGN_STEP and self.mode == "attended":
+            return "powerful"
+        return config().get(key, STEP_CLASSES[key])
+
+    def model_line(self, step):
+        if not CONFIG.exists():
+            return (f"Subagent model: {self.model(step)}. {CONFIG} does not exist, so use your own model. "
+                    "A model that the user names takes priority.")
+        return (f"Subagent model: {self.model(step)}. Use the model of this class for your harness under `models` in {CONFIG}. "
+                "When the class has a list of models, spread the subagents across the list. A missing or null value means your own model. A model that the user names takes priority.")
+
+    def packet(self, text, feature):
+        """Everything that one reviewer needs for one feature, and nothing about the driver."""
+        self.load_base()
+        row = self.feature_row(feature)
+        leads = self.tool_rows(feature)
+        lines = [text.rstrip(), "", f"# Feature {feature}: {row[1]}", "",
+                 f"Target checkout: {self.target}. Paths below are relative to it.",
+                 f"Write your reply in: {self.record_path(CHECK_STEP, feature)}",
+                 f"Number your findings from {self.first_finding(feature)}.", self.lead_rule()]
+        if len(row) > 3:
+            lines.append(f"Entry points: {row[3]}")
+        if leads:
+            lines += ["", "## Tool results to close", "", f"Name each result in the `{TOOL_RESULTS}` line or in a finding.", ""]
+            lines += [f"- {' | '.join(lead)}" for lead in leads]
+        lines += ["", "## Code", ""] + self.code(row)
+        lines += ["", "## Map record", "", "The mapper's inventory and notes for this feature. Cite its entry IDs.", "",
+                  demote(COMMENT.sub("", self.record_path(MAP_STEP, feature).read_text()).strip(), 2)]
+        others = [other for other in rows_of(COMMENT.sub("", self.record_path(SCOPE_STEP, None).read_text()), "Features") if other[0] != feature]
+        lines += ["", "## Other features", "", "Other reviewers check these features. Search them for an owner of the same work.", ""]
+        lines += [f"- {' | '.join(other[:3])}" for other in others] or ["- none"]
+        lines += ["", "## Design document", "", "The review of the whole target: its purpose, capabilities, findings, decisions, directions, and plan. "
+                  "Find the parts that name this feature.", "",
+                  self.embedded(DESIGN_STEP)]
+        lines += ["", "## Checks", "", f"Checks file: {self.checks_path(CHECK_STEP, feature)}."]
+        return "\n".join(lines) + "\n"
+
+    def embedded(self, step):
+        """A submitted target-level record, without comments, nested under a packet heading."""
+        return demote(COMMENT.sub("", self.record_path(step, None).read_text()).strip(), 2)
+
+    def code(self, row, inline=True):
+        """The feature's diff for the code playbook, or its file list. A diff above the limit is listed, not inlined."""
+        files = sorted(self.covered([row], 2)) if len(row) > 2 else []
+        if not files:
+            return [f"Paths: {row[2] if len(row) > 2 else 'none'}. Read them in the target."]
+        if self.playbook == "code" and self.base:
+            tracked = [path for path in files if git_ok(self.target, "ls-files", "--error-unmatch", "--", path) or path in self.deleted()]
+            new = [path for path in files if path not in tracked]
+            diff = git(self.target, "diff", "--relative", "--no-ext-diff", "--no-color", self.base, "--", *tracked).decode(errors="replace") if tracked else ""
+            size = len(diff.splitlines())
+            lines = [f"Base {self.base}. Files: " + ", ".join(f"`{path}`" for path in files) + "."]
+            if new:
+                lines.append("Untracked new files, not in the diff: " + ", ".join(f"`{path}`" for path in new) + ". Read them.")
+            if not inline or size > DIFF_LIMIT:
+                return lines + [f"The diff has {size} lines. Read it with `git -C {self.target} diff --relative {self.base} -- <file>` for each file."]
+            return lines + ["", "```diff", diff.rstrip(), "```"]
+        sizes = [f"- `{path}` ({len((self.target / path).read_bytes().splitlines())} lines)" if (self.target / path).is_file() else f"- `{path}`"
+                 for path in files]
+        return ["Read each file in the target:", ""] + sizes
+
+    def resolve(self, key):
+        """The current item, or the item that `key` names when it is an unsubmitted item of the current step."""
+        found = self.current()
+        if key is None or found is None:
+            return found
+        step, _, item = key.partition(":")
+        item = item or None
+        if step != found[0]:
+            raise Failure(f"{key} is not in the current step, {found[0]}.")
+        if item not in self.items(self.spec(step)["per"]):
+            raise Failure(f"{key} is not an item of step {step}. Run `release` to list the items.")
+        if self.state["steps"].get(key, {}).get("submitted"):
+            raise Failure(f"{key} is already submitted.")
+        return step, item
+
+    def open(self, step, item):
+        """Release one item and create its record. Return the record and the instructions."""
+        text = self.instructions(step, item)
+        entry = self.state["steps"].setdefault(self.key(step, item), {})
+        record = self.record_path(step, item)
+        if not entry.get("released"):
+            entry.update(released=now())
+            self.save()
+            self.log("release", step=step, item=item)
+        if not record.exists():
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text(template(self.label(step, item), text, self.spec(step)))
+        if self.has_packet(step, item) and not self.packet_path(step, item).exists():
+            self.packet_path(step, item).write_text(text)
+        if step in (QUICK_STEP, CHECK_STEP) and not self.checks_path(step, item).exists():
+            self.checks_path(step, item).write_text(self.checks_file(item))
+        if self.spec(step).get("review"):
+            self.write_table()
+        return record, text
+
+    def release(self, key=None):
+        found = self.resolve(key)
+        if found is None:
+            print("All steps are complete.")
+            return
+        step, item = found
+        record, text = self.open(step, item)
+        done = len([1 for value in self.state["steps"].values() if value.get("submitted")])
+        submit = f"{shlex.quote(str(Path(__file__).resolve()))} submit --records {shlex.quote(str(self.records))}"
+        if item:
+            submit += f" --item {shlex.quote(self.key(step, item))}"
+        print(f"=== {self.label(step, item)} | {self.mode} mode | {done} records submitted ===")
+        print(f"Record: {record}")
+        print(f"Records directory ($records): {self.records}")
+        print(f"Target: {self.target}")
+        print()
+        if self.spec(step).get("packet"):
+            print(f"Packet: {self.packet_path(step, item)}")
+            print("Read the packet, and do its work yourself, without subagents.")
+            print(f"Then run: {submit}")
+            return
+        if self.has_packet(step, item):
+            print(f"Packet: {self.packet_path(step, item)}")
+            print("Give the packet to a subagent. The reply goes in the record above."
+                  + (" This step has one packet for each feature: run `release` to release them all." if item else ""))
+            print(self.model_line(step))
+            print(f"Then run: {submit}")
+            return
+        print(text)
+        print(f"Fill every field in the record. Then run: {submit}")
+
+    def has_packet(self, step, item):
+        return item is not None or self.spec(step).get("delegate") or self.spec(step).get("packet")
+
+    def release_all(self):
+        """Release every unsubmitted item of the current step, and print them as compact JSON for parallel agents.
+
+        Record and packet paths are relative to the records directory."""
+        found = self.current()
+        if found is None:
+            raise Failure("All steps are already submitted.")
+        step = found[0]
+        listed, groups = {"step": step, "records": str(self.records), "model": self.model(step), "config": str(CONFIG)}, {}
+        if step == MAP_STEP:
+            listed["subagents"] = config().get("map_subagents", MAP_SUBAGENTS[0])
+        for item in self.items(self.spec(step)["per"]):
+            if self.state["steps"].get(self.key(step, item), {}).get("submitted"):
+                continue
+            record = str(self.open(step, item)[0].relative_to(self.records))
+            if item is None:
+                listed["record"] = record
+                if self.spec(step).get("delegate"):
+                    listed["packet"] = str(self.packet_path(step, item).relative_to(self.records))
+                continue
+            group = groups.setdefault(item, {"feature": item, "name": self.feature_row(item)[1], "record": record,
+                                             "packet": str(self.packet_path(step, item).relative_to(self.records))})
+            if step == CHECK_STEP:
+                group["first_finding_id"] = self.first_finding(item)
+        listed["features"] = list(groups.values())
+        print(json.dumps(listed, separators=(",", ":")))
+
+    def table(self):
+        """One row for each feature and check, with its findings or `none`. A topic's line stands for its checks that have
+        no line. Then one row for each finding."""
+        lines = [TABLE, "", "| Feature | Check | Result |", "|---|---|---|"]
+        for feature in self.items("feature"):
+            results = {named(row[0]).rstrip("/").rpartition("/")[2]: row[1] for row in self.rows(self.record_path(CHECK_STEP, feature), "Checks")
+                       if len(row) > 1}
+            row = self.feature_row(feature)
+            title = f"{feature} {row[1] if len(row) > 1 else ''}"
+            for check in [OPEN_REVIEW, *self.checks(feature)]:
+                topic, _, name = check.rpartition("/")
+                result = results.get(name, results.get(topic, "missing"))
+                lines.append(f"| {title} | {check} | {'none' if result == 'absent' else result} |")
+        lines += ["", FINDINGS_TABLE, "", "| ID | Feature | Rung | Effect | Decision | Location | Finding |", "|---|---|---|---|---|---|---|"]
+        for feature, row in self.findings():
+            found = dict(zip(FINDING_COLUMNS, fit(row, len(FINDING_COLUMNS))))
+            lines.append(f"| {found['id']} | {feature or 'design'} | {found['rung']} | {found['effect']} | {found['decision']} "
+                         f"| {found['location']} | {found['finding']} |")
+        return "\n".join(lines)
+
+    def write_table(self):
+        """Write the driver's tables into review.md, in place of any earlier copy of them."""
+        review = self.records / "review.md"
+        block = f"{TABLES_START}\n{self.table()}\n{TABLES_END}"
+        text = review.read_text() if review.exists() else "# Review\n"
+        if TABLES_START in text and TABLES_END in text:
+            head, _, rest = text.partition(TABLES_START)
+            text = head + block + rest.partition(TABLES_END)[2]
+        else:
+            text = text.rstrip() + "\n\n" + block + "\n"
+        review.write_text(text)
+
+    def findings(self):
+        """Every finding of the submitted design and check records, as (feature, row). A design finding has no feature.
+        Two features can use the same ID."""
+        found = []
+        for step in (QUICK_STEP, DESIGN_STEP):
+            if self.state["steps"].get(step, {}).get("submitted"):
+                found += [(None, row) for row in self.rows(self.record_path(step, None), "Findings")]
+        return found + [(item, row) for item in self.items("feature")
+                        if self.state["steps"].get(self.key(CHECK_STEP, item), {}).get("submitted")
+                        for row in self.rows(self.record_path(CHECK_STEP, item), "Findings")]
+
+    def finding_rows(self, key=None):
+        """Findings as dictionaries: one record's rows, or every submitted check finding and whole-target finding."""
+        if key:
+            step, _, item = key.partition(":")
+            found = [(item or None, row) for row in self.rows(self.record_path(step, item or None), self.section_of(step))]
+        else:
+            found = self.findings()
+            if self.state["steps"].get(REPORT_STEP, {}).get("submitted"):
+                found += [(None, row) for row in self.rows(self.record_path(REPORT_STEP, None), "Whole-target findings")]
+        return [{"item": item, **dict(zip(FINDING_COLUMNS, fit(row, len(FINDING_COLUMNS))))} for item, row in found]
+
+    def section_of(self, step):
+        return "Whole-target findings" if step == REPORT_STEP else "Findings"
+
+    def planned_keys(self):
+        for step in self.steps():
+            try:
+                items = self.items(self.spec(step)["per"])
+            except NotReady:
+                yield f"{step}:*"
+                continue
+            for item in items:
+                yield self.key(step, item)
+
+    def submit(self, named=None):
+        found = self.resolve(named)
+        if found is None:
+            raise Failure("All steps are already submitted.")
+        step, item = found
+        key = self.key(step, item)
+        entry = self.state["steps"].get(key, {})
+        if not entry.get("released"):
+            raise Failure(f"{key} was not released. Run `reduce-step next` first.")
+        if step != CLOSE_STEP:  # the close step applies findings, so it changes the target on purpose
+            self.check_target()
+        record = self.record_path(step, item)
+        errors = self.validate(step, item, record)
+        if errors:
+            self.log("rejected", step=step, item=item, errors=errors)
+            raise Failure(f"{record} is not complete:\n" + "\n".join(f"- {error}" for error in errors))
+        entry.update(submitted=now(), record=str(record.relative_to(self.records)))
+        notes = self.notes(step, COMMENT.sub("", record.read_text()))
+        self.log("submit", step=step, item=item, notes=notes)
+        if self.spec(step).get("review"):
+            self.write_table()
+        self.save()
+        print(f"Accepted {key}.")
+        if notes:
+            print("Notes. They do not block the record; fix them only when they change a conclusion:")
+            print("\n".join(f"- {note}" for note in notes))
+        print()
+        if named is None:
+            self.release()
+            return
+        waiting = [self.key(step, other) for other in self.items(self.spec(step)["per"])
+                   if not self.state["steps"].get(self.key(step, other), {}).get("submitted")]
+        print(f"{len(waiting)} items of step {step} are not submitted." if waiting else f"Step {step} is complete. Run `next` for the next step.")
+
+    def validate(self, step, item, record):
+        """The problems that stop a later step from using the record. Everything else is a note."""
+        spec = self.spec(step)
+        text = COMMENT.sub("", record.read_text())
+        self.load_base(text if step == SCOPE_STEP else None)
+        errors = []
+        if spec.get("instruction_records", True):
+            errors += [f"The `## {instruction}` section is missing." for instruction in INSTRUCTION.findall(self.step_file(step).read_text())
+                       if section_body(text, instruction) is None]
+        for name, section in spec["sections"].items():
+            if section_body(text, name) is None:
+                errors.append(f"The `## {name}` section is missing.")
+            elif section.get("min") and "prose" in section and not section_body(text, name).split():
+                errors.append(f"`## {name}` is empty.")
+            elif section.get("min") and "prose" not in section and not rows_of(text, name):
+                errors.append(f"`## {name}` needs at least one row.")
+            elif section.get("columns") and section["columns"][0]["name"] == "id" and "prefix" in section["columns"][0]:
+                prefix = section["columns"][0]["prefix"]
+                wrong = [row[0] for row in rows_of(text, name) if row[0].lower() != "none" and not re.fullmatch(rf"{prefix}\d+", row[0].strip("` "))]
+                if wrong:
+                    errors.append(f"`## {name}` has IDs without the prefix {prefix}: {', '.join(wrong[:10])}. "
+                                  f"Number the rows {prefix}1, {prefix}2, and so on; later steps cite these IDs.")
+            columns = section.get("columns", [])
+            rows = [fit(row, len(columns)) for row in rows_of(text, name) if row[0].lower() != "none"]
+            for index, column in enumerate(columns):  # a later step or the driver acts on an enforced value
+                wrong = sorted({row[index] or "(empty)" for row in rows if named(row[index]).lower() not in column["values"]}
+                               ) if column.get("enforce") else []
+                if wrong:
+                    errors.append(f"`## {name}`: the {column['name']} must be {' or '.join(column['values'])}, "
+                                  f"not {', '.join(wrong[:10])}.")
+        if step == SCOPE_STEP:
+            errors += self.validate_scope(spec, text)
+        if step == CHECK_STEP:  # a check has its own line, or the line of its topic when no pattern of the topic appears
+            cells = {named(row[0]).rstrip("/") for row in rows_of(text, "Checks")}
+            errors += [f"`## Checks` has no line for `{check}`. Give the open review and every check of the checks file one line."
+                       for check in [OPEN_REVIEW, *self.checks(item)]
+                       if not {check, check.rpartition("/")[2], check.rpartition("/")[0] if check not in self.always() else check} & cells]
+        if step == QUICK_STEP:
+            cells = [named(row[0]) for row in rows_of(text, "Checks")]
+            errors += [f"`## Checks` has no line for `{name}`. Give one line to the open review, to each check that always applies, and to each topic."
+                       for name in [OPEN_REVIEW] + [check for check in self.checks() if check in self.always()] + self.choices()
+                       if not any(cell in (name, name.rpartition("/")[2]) or cell.startswith(f"{name}/") for cell in cells)]
+        if step == REPORT_STEP and (self.records / "leads.md").exists():
+            written = [line for line in (self.records / "leads.md").read_text().splitlines() if line.strip()]
+            closed = {named(row[0]) for row in rows_of(text, "Leads")}
+            missing = [str(number) for number in range(1, len(written) + 1) if str(number) not in closed]
+            if missing:
+                errors.append(f"`## Leads` has no row for these lines of leads.md: {', '.join(missing)}. "
+                              "Start each row with the number of the line.")
+        if spec.get("review"):
+            review = self.records / "review.md"
+            rest = review.read_text().partition(TABLES_START)[0] + review.read_text().partition(TABLES_END)[2] if review.exists() else ""
+            if len(re.sub(r"^# .*$", "", rest, flags=re.M).split()) < 20:
+                errors.append("review.md has no report beside the driver's tables. Write the sections of the report step in it.")
+        return errors
+
+    def validate_scope(self, spec, text):
+        """The driver builds each later item from the features: their IDs, titles, and files."""
+        errors = []
+        if self.playbook == "code" and not self.base:
+            errors.append("`## Revisions` needs the base commit first. The driver uses it to build each feature's diff.")
+        seen = set()
+        for row in rows_of(text, "Features"):
+            if row[0] in seen:
+                errors.append(f"Feature {row[0]} appears twice. Give each feature its own ID.")
+            seen.add(row[0])
+            if len(row) < 3:
+                errors.append(f"Feature {row[0]} needs an ID, a title, and its paths, separated by `|`.")
+            elif spec["cover"] and not self.covered([row], 2):
+                errors.append(f"Feature {row[0]}: its paths match no file in the target. The packets need the feature's files.")
+        if spec["cover"]:
+            errors += self.check_coverage(spec["cover"], text)
+        return errors
+
+    def notes(self, step, text):
+        """Problems that do not block a record. The agent decides whether they matter."""
+        found = []
+        references = PATH_REF.findall(text)
+        missing = sorted({path for path, _, _ in references if not self.exists(path)})
+        if missing:
+            found.append("These cited files do not exist in the target or the records: "
+                         + ", ".join(f"`{path}`" for path in missing[:10]) + (" …" if len(missing) > 10 else "") + ".")
+        beyond = sorted({f"{path}:{start}{'-' + end if end else ''}" for path, start, end in references
+                         if (self.target / path).is_file() and int(end or start) > self.length(path)})
+        if beyond:
+            found.append("These lines are past the end of their file: " + ", ".join(f"`{reference}`" for reference in beyond[:10]) + ".")
+        if step == SCOPE_STEP:
+            features = [row[0] for row in rows_of(text, "Features")]
+            stray = [row[0] for row in rows_of(text, "Tool results") if row[0].lower() != "none"
+                     and not any(re.search(rf"\b{re.escape(feature)}\b", " ".join(row[1:2])) for feature in features)]
+            if stray:
+                found.append("These tool results name no feature, so no check packet includes them: " + ", ".join(stray) + ".")
+        return found
+
+    def length(self, path):
+        return len((self.target / path).read_bytes().splitlines())
+
+    def exists(self, path):
+        if Path(path).is_absolute():
+            return Path(path).exists()
+        top = Path(git(self.target, "rev-parse", "--show-toplevel").decode().strip())  # a folder target can cite the rest of its checkout
+        if any((root / path).exists() for root in (self.target, top, self.records, SKILL)) or path in self.deleted():
+            return True
+        return bool(git(top, "ls-files", "--", f"*/{path}").strip())  # a path written from a subfolder
+
+    def status(self):
+        found = self.current()
+        for key in self.planned_keys():
+            value = self.state["steps"].get(key, {})
+            mark = "submitted" if value.get("submitted") else "released" if value.get("released") else "pending"
+            print(f"{key}: {mark}")
+        if found is None:
+            print("Complete.")
+            return True
+        print(f"Current: {self.label(*found)}")
+        return False
+
+
+def demote(text, levels):
+    """Add `levels` to each Markdown heading outside code blocks, so that a document nests under a packet heading."""
+    fenced, lines = False, []
+    for line in text.splitlines():
+        if line.startswith("```"):
+            fenced = not fenced
+        lines.append("#" * levels + line if not fenced and re.match(r"#+ ", line) else line)
+    return "\n".join(lines)
+
+
+def fit(row, size):
+    """A row with exactly `size` cells: extra cells join the last one, which can hold `|`, and missing cells are empty."""
+    return row[:size - 1] + [" | ".join(row[size - 1:])] if len(row) > size else row + [""] * (size - len(row))
+
+
+def named(cell):
+    """The name that a cell starts with: its first word, without backticks. A note can follow the name."""
+    words = cell.split()
+    return words[0].strip("`") if words else ""
+
+
+def split_cell(cell):
+    return [part.strip() for part in cell.split(";") if part.strip()]
+
+
+def rows_of(text, section):
+    body = section_body(text, section) or ""
+    return [[cell.strip() for cell in line[2:].split("|")]
+            for line in body.splitlines() if line.startswith("- ") and ("|" in line or line[2:].strip().lower() == "none")]
+
+
+def section_body(text, name):
+    match = re.search(rf"^##\s+{re.escape(name)}\s*$", text, re.M)
+    if not match:
+        return None
+    rest = text[match.end():]
+    following = re.search(r"^##\s", rest, re.M)
+    return rest[:following.start()] if following else rest
+
+
+def relink(text, source):
+    """Make relative links absolute, so that links in printed text resolve from any directory."""
+    def absolute(match):
+        target = match[2]
+        if re.match(r"^[a-z]+:", target) or target.startswith("#"):
+            return match[0]
+        path, _, anchor = target.partition("#")
+        resolved = (source.parent / path).resolve()
+        return f"[{match[1]}]({resolved}{'#' + anchor if anchor else ''})"
+    return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", absolute, text)
+
+
+def placeholder(column):
+    if "prefix" in column:
+        return f"{column['name']}, such as {column['prefix']}1"
+    if "values" in column:
+        return " or ".join(column["values"])
+    if column.get("evidence"):
+        return f"{column['name']}: path:line"
+    return column["name"]
+
+
+def template(label, text, spec):
+    lines = [f"# {label}", ""]
+    if spec.get("instruction_records", True):
+        lines += ["<!-- Keep every heading. status: applied, not-applicable, or blocked. evidence: path:line in the target.",
+                  "     finding: what you did and found; for no finding, what you searched. -->", ""]
+        for instruction in INSTRUCTION.findall(text):
+            lines += [f"## {instruction}", "status: ", "evidence:", "- ", "finding: ", ""]
+    else:
+        lines += ["<!-- Keep every heading. Cite evidence as path:line in the target. -->", ""]
+    for name, section in spec["sections"].items():
+        if "prose" in section:
+            lines += [f"## {name}", f"<!-- {section['prose']} -->", ""]
+            continue
+        columns = " | ".join(f"<{placeholder(column)}>" for column in section["columns"])
+        lines += [f"## {name}", f"<!-- One line per row: - {columns}" +
+                  (" ; or - none | <reason>" if section.get("none") else "") + " -->", ""]
+    return "\n".join(lines) + "\n"
+
+
+def default_records(target):
+    """A new folder under the user's runs folder: <repository>-<branch or revision>-<YYYYMMDD-HHMM>."""
+    branch = git(target, "rev-parse", "--abbrev-ref", "HEAD").decode().strip()
+    label = branch if branch != "HEAD" else git(target, "rev-parse", "--short", "HEAD").decode().strip()
+    base = f"{slug(target.name)}-{slug(label)}-{datetime.datetime.now():%Y%m%d-%H%M}"
+    found, number = RUNS / base, 2
+    while found.exists():
+        found, number = RUNS / f"{base}-{number}", number + 1
+    return found
+
+
+def start(args):
+    target = Path(args.target).resolve()
+    top = Path(git(target, "rev-parse", "--show-toplevel").decode().strip())
+    records = Path(args.records).resolve() if args.records else default_records(top)
+    if records == top or top in records.parents:
+        raise Failure("Keep the records directory outside the target.")
+    defs = definitions()
+    if args.playbook not in defs["playbooks"]:
+        raise Failure(f"Unknown playbook {args.playbook}; use one of {', '.join(defs['playbooks'])}.")
+    if args.mode == "quick" and args.playbook == "plan":
+        raise Failure("Quick mode supports the code and codebase playbooks. Run the plan playbook without --mode quick.")
+    state_path = records / ".reduce-step" / "state.json"
+    if state_path.exists():
+        raise Failure(f"{records} already has a reduce run. Use `next`, or choose a new records directory.")
+    config()
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    taken = snapshot(target)
+    state = {"run_id": sha256(f"{target}{records}{now()}".encode())[:16], "playbook": args.playbook, "mode": args.mode, "target": str(target),
+             "records": str(records), "started": now(), "snapshot": taken, "steps": {}}
+    state_path.write_text(json.dumps(state, indent=2) + "\n")
+    run = Run(records)
+    run.log("start", playbook=args.playbook, mode=args.mode, target=str(target), **taken)
+    print(f"Started the {args.playbook} playbook in {args.mode} mode on {target}")
+    print(f"Records directory: {records}. Pass it as --records to every later command.")
+    print(f"Revision: {taken['head']}")
+    print(f"Existing edits SHA-256: {taken['edits_sha256']}")
+    if not CONFIG.exists() and args.mode != "quick":
+        print(f"No configuration at {CONFIG}: every subagent uses your own model. The reduce-setup skill writes it.")
+    print()
+    run.release()
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="reduce-step", description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    begin = commands.add_parser("start", help="start a run and release the first step")
+    begin.add_argument("--playbook", required=True)
+    begin.add_argument("--target", required=True, help="the Git checkout under review, or one folder of it")
+    begin.add_argument("--records", help=f"a new directory outside the target; default: a new folder in {RUNS}")
+    begin.add_argument("--mode", choices=MODES, default=MODES[0], help="attended mode asks the user the feature and design questions; quick mode is one review that the parent does itself")
+    for name, text in (("next", "print the current step again"), ("submit", "check the current record and release the next step"),
+                       ("release", "release every item of the current step and print them as JSON"),
+                       ("findings", "print findings as JSON: one record's with --item, or every submitted finding"),
+                       ("status", "list the steps and their state")):
+        command = commands.add_parser(name, help=text)
+        command.add_argument("--records", required=True)
+        if name in ("next", "submit", "findings"):
+            command.add_argument("--item", help="an item key of the current step, such as 4-check:F1")
+        if name == "status":
+            command.add_argument("--final", action="store_true", help="exit 1 unless every step is submitted")
+    shown = commands.add_parser("config", help="validate the configuration, and print the class and models of each delegated step")
+    shown.add_argument("--file", help=f"a draft to validate in place of {CONFIG}")
+    args = parser.parse_args()
+    try:
+        if args.command == "start":
+            start(args)
+            return
+        if args.command == "config":
+            show_config(args)
+            return
+        lock = Path(args.records).resolve() / ".reduce-step" / "lock"
+        if not lock.parent.is_dir():
+            raise Failure(f"No reduce run in {lock.parent.parent}. Run `reduce-step start` first.")
+        with lock.open("a") as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            run = Run(args.records)
+            if args.command == "next":
+                run.release(args.item)
+            elif args.command == "submit":
+                run.submit(args.item)
+            elif args.command == "release":
+                run.release_all()
+            elif args.command == "findings":
+                print(json.dumps(run.finding_rows(args.item), indent=2))
+            elif not run.status() and args.final:
+                sys.exit(1)
+    except Failure as failure:
+        print(f"reduce-step: {failure}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
