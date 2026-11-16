@@ -33,3 +33,5 @@ Migrate callers and remove replaced code unless a concrete compatibility contrac
 Apply and verify one coherent group at a time. Check affected behavior at its strongest practical boundary.
 Compare failures with the baseline, recheck affected findings, and report gaps. Preserve unrelated changes.
 When formal checks already cover changed code, reconcile them with the implementation. Report unresolved invariants.
+When the reduction moves requirements between plan units, compare the units before and after.
+Derive each ownership change from that comparison. A list written by hand is a summary, not the source.
