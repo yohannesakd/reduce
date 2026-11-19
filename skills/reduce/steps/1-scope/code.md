@@ -15,7 +15,7 @@ Collect the facts about the change under review: its limits, its sources, its fe
 8. **1.8** List each tool result in `## Tool results` with the feature that it belongs to. Copy what the tool reports. A score, an empty scan, or a report from another revision is a result to check, never evidence of safety or completion. List the suspected defects that a tool reports, such as a security problem or a wrong result, apart from the reductions.
 
 List the features in `## Features`. Each feature gets one map record and its checks later.
-In the paths column, list the changed files of the feature, separated by `;`. Every changed, added, deleted, and untracked file must be in a feature or in `## Excluded` with its reason.
+In the paths column, list the changed files of the feature, separated by `;`. The driver selects the [language checks](../../checks/README.md#languages) from these files, so list real file paths. Every changed, added, deleted, and untracked file must be in a feature or in `## Excluded` with its reason.
 In the entry points column, cite each public interface, command, route, job, persistent store, or operational path that reaches the feature, as `path:line`, separated by `;`.
 
 This step collects. Do not judge the target here: state no purpose of your own, propose no reduction, and trace no cause. The design step does that work with the map records.

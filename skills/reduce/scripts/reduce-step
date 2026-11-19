@@ -39,8 +39,10 @@ CONFIG_KEYS = (*STEP_CLASSES, "map_subagents", "models")
 SCOPE_STEP, QUICK_STEP, MAP_STEP = "1-scope", "2-quick", "2-map"
 DESIGN_STEP, CHECK_STEP, REPORT_STEP, CLOSE_STEP = "3-design", "4-check", "5-report", "6-close"
 TOOL_RESULTS = "every-feature/tool-results"  # the check that closes the tool results of the scope step
+REFACTORING = "every-feature/refactoring"  # the algorithm and general style that every design and change of code follows
 OPEN_REVIEW = "open-review"  # the `## Checks` line for the review that no check limits
 DIFF_LIMIT = 3000  # lines of diff that a packet holds inline
+HEAD_BYTES = 16384  # bytes of a file that the language detection reads for a shebang or an import
 INSTRUCTION = re.compile(r"^\s*\d+\.\s+\*\*(\d+\.\d+)\*\*", re.M)
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 LINE_REF = re.compile(r"^(?P<path>[^\s:][^:]*?)(?::(?P<start>\d+)(?:-(?P<end>\d+))?)?$")
@@ -201,6 +203,7 @@ class Run:
         self.mode = self.state.get("mode", MODES[0])
         self.expanded = {}
         self.base = None
+        self.detected = {}
 
     def save(self):
         self.state_path.write_text(json.dumps(self.state, indent=2) + "\n")
@@ -272,21 +275,45 @@ class Run:
             return [row[0] for row in self.rows(self.record_path(SCOPE_STEP, None), "Features")]
         raise Failure(f"Unknown item kind {kind}")
 
-    def always(self):
-        """The checks that run for every feature of this playbook. An entry is a folder or one check."""
+    def always(self, feature=None):
+        """The checks that run for every feature of this playbook, then the language checks of the feature's files,
+        or of every feature's files for the quick review. An entry is a folder or one check."""
         entries = self.defs["always_check"]["every"] + self.defs["always_check"][self.playbook]
-        return [check for entry in entries for check in ([entry] if "/" in entry else folder_checks(entry))]
+        return [check for entry in entries for check in ([entry] if "/" in entry else folder_checks(entry))] + self.languages(feature)
+
+    def languages(self, feature=None):
+        """The language checks whose extension, shebang, or import appears in the files of one feature or of all features."""
+        if feature not in self.detected:
+            self.load_base()
+            rows = [self.feature_row(feature)] if feature else self.rows(self.record_path(SCOPE_STEP, None), "Features")
+            files = [self.target / path for path in sorted(self.covered(rows, 2)) if (self.target / path).is_file()]
+            heads = {}
+            def head(path):
+                if path not in heads:
+                    with path.open("rb") as stream:
+                        heads[path] = stream.read(HEAD_BYTES).decode(errors="replace")
+                return heads[path]
+            def matches(rule, path):
+                if path.suffix in rule.get("extensions", ()):
+                    return True
+                if "shebang" in rule and not path.suffix and re.match(rf"#!.*\b{rule['shebang']}", head(path)):
+                    return True
+                return path.suffix in rule.get("content_extensions", ()) and bool(re.search(rule["content"], head(path)))
+            self.detected[feature] = [check for check, rule in self.defs["languages"].items() if any(matches(rule, path) for path in files)]
+        return self.detected[feature]
 
     def choices(self):
-        """The topics that a review looks over: every indexed topic that does not always apply to some playbook."""
+        """The topics that a review looks over: every indexed topic that does not always apply to some playbook,
+        and not the language topic, whose checks the driver selects from the files."""
         folders = {entry for entries in self.defs["always_check"].values() for entry in entries if "/" not in entry}
+        folders |= {check.partition("/")[0] for check in self.defs["languages"]}
         return [topic for topic in index_topics() if topic not in folders]
 
     def checks(self, feature=None):
         """Every check of one feature's review, or of the quick review: the checks that always run, then every check of every topic.
         The tool-results check needs a tool result."""
         self.require_submitted(SCOPE_STEP)
-        checks = self.always() + [check for topic in self.choices() for check in folder_checks(topic)]
+        checks = self.always(feature) + [check for topic in self.choices() for check in folder_checks(topic)]
         return list(dict.fromkeys(check for check in checks if check != TOOL_RESULTS or self.tool_rows(feature)))
 
     def tool_rows(self, feature=None):
@@ -387,6 +414,8 @@ class Run:
             return self.target_packet(step, text)
         if step == QUICK_STEP:
             return self.quick_packet(text)
+        if step == CLOSE_STEP:
+            return text + "\n" + "\n".join(self.rule_lines()) + "\n"
         if item is None:
             return text
         if step == CHECK_STEP:
@@ -417,7 +446,7 @@ class Run:
                  "", "## Records to read", "",
                  f"- Scope record: {self.record_path(SCOPE_STEP, None)}"]
         lines += [f"- Map record of {feature}: {path}" for feature, path in zip(self.items("feature"), maps)]
-        return "\n".join(lines) + "\n"
+        return "\n".join(lines + [""] + self.rule_lines()) + "\n"
 
     def quick_packet(self, text):
         """The quick review: the step, the record form, and each feature's files. The checks are in a second file."""
@@ -436,9 +465,15 @@ class Run:
         lines += ["", "## Checks", "", f"Checks file: {self.checks_path(QUICK_STEP, None)}. Read it only after your open review."]
         return "\n".join(lines) + "\n"
 
+    def rule_lines(self):
+        """The refactoring check and the language checks of the whole target, for the steps that design or change code."""
+        checks = [REFACTORING, *self.languages()]
+        return ["## Rules for the code", "", "Apply these checks to every design and every change of code in this step. "
+                "The check step applies them to each feature in full.", ""] + [f"- `{check}`: {CHECKS / f'{check}.md'}" for check in checks]
+
     def checks_file(self, feature=None):
         """A checks file: the checks that always run, in full, then the file and pattern of each check of every topic."""
-        full = [check for check in self.checks(feature) if check in self.always()]
+        full = [check for check in self.checks(feature) if check in self.always(feature)]
         title = f"feature {feature}: {self.feature_row(feature)[1]}" if feature else "the quick review"
         lines = [f"# Checks for {title}", "", "## Checks that always apply", "",
                  f"Apply these {len(full)} checks: " + ", ".join(f"`{check}`" for check in full) + "."]
@@ -762,7 +797,7 @@ class Run:
             cells = {named(row[0]).rstrip("/") for row in rows_of(text, "Checks")}
             errors += [f"`## Checks` has no line for `{check}`. Give the open review and every check of the checks file one line."
                        for check in [OPEN_REVIEW, *self.checks(item)]
-                       if not {check, check.rpartition("/")[2], check.rpartition("/")[0] if check not in self.always() else check} & cells]
+                       if not {check, check.rpartition("/")[2], check.rpartition("/")[0] if check not in self.always(item) else check} & cells]
         if step == QUICK_STEP:
             cells = [named(row[0]) for row in rows_of(text, "Checks")]
             errors += [f"`## Checks` has no line for `{name}`. Give one line to the open review, to each check that always applies, and to each topic."

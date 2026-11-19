@@ -10,8 +10,9 @@ from pathlib import Path
 SKILL = Path(__file__).resolve().parents[1] / "skills/reduce"
 FINDING = "Traced the entry and recorded the result."
 EVERY_FEATURE = ["every-feature/" + name for name in (
-    "fresh-design", "ladder", "behavior-nothing-needs")]
-ALWAYS = ("every-feature", "unrelated-changes", "plans")
+    "fresh-design", "ladder", "behavior-nothing-needs", "refactoring")]
+LANGUAGE = "languages/python"  # the language check of the fixture's app.py
+ALWAYS = ("every-feature", "unrelated-changes", "plans", "languages")
 TOPICS = [topic for topic in re.findall(r"^### `([^`]+)`", (SKILL / "checks/README.md").read_text(), re.M) if topic not in ALWAYS]
 CHECKS_OF = {topic: re.findall(rf"\]\({topic}/([^)]+)\.md\)", (SKILL / "checks/README.md").read_text()) for topic in TOPICS}
 RELEASED = re.compile(r"^=== Step 4-check for (F\d+) ", re.M)
@@ -159,7 +160,7 @@ class ReduceStepTest(unittest.TestCase):
         self.record("2-map", "F1").write_text(self.record("2-map", "F1").read_text().replace("- I1 |", "- B1 |"))
         self.assertIn("=== Step 3-design | unattended mode |", self.run_step("submit").stdout)
         self.assertIn("Packet: ", self.submit_design())
-        self.assertEqual(self.planned("F1")[:len(EVERY_FEATURE) + 1], [*EVERY_FEATURE, f"{TOPICS[0]}/{CHECKS_OF[TOPICS[0]][0]}"])
+        self.assertEqual(self.planned("F1")[:len(EVERY_FEATURE) + 2], [*EVERY_FEATURE, LANGUAGE, f"{TOPICS[0]}/{CHECKS_OF[TOPICS[0]][0]}"])
 
     def test_code_playbook_covers_changed_untracked_and_deleted_files(self):
         (self.target / "old.py").write_text("OLD = 1\n")
@@ -182,7 +183,7 @@ class ReduceStepTest(unittest.TestCase):
                                                         "B3 | new constant; no consumer found | new.py:1"]})
         self.assertNotIn("Notes", self.run_step("submit").stdout)
         self.submit_design()
-        self.assertEqual(self.planned("F1")[:4], EVERY_FEATURE + ["unrelated-changes/hunk-that-does-not-serve-the-problem"])
+        self.assertEqual(self.planned("F1")[:len(EVERY_FEATURE) + 1], EVERY_FEATURE + ["unrelated-changes/hunk-that-does-not-serve-the-problem"])
         self.assertIn("### Check `unrelated-changes/hunk-that-does-not-serve-the-problem`", self.checks("F1"))
         packet = self.packet("F1")
         self.assertIn("-    return 1\n+    return 2", packet)
@@ -217,7 +218,7 @@ class ReduceStepTest(unittest.TestCase):
                             "X2 | remove | intent | user | F1:B1 | app.py:2 | nothing reads the value"],
                            ["F1 | F2 owns the return; use it | X1"], ["X2 | Does anything read the value? | remove it | unanswered"])
         options = ["options-flags-and-settings/" + name for name in CHECKS_OF["options-flags-and-settings"]]
-        self.assertEqual(self.planned("F1")[:4], [*EVERY_FEATURE, "every-feature/tool-results"])
+        self.assertEqual(self.planned("F1")[:len(EVERY_FEATURE) + 1], [*EVERY_FEATURE, "every-feature/tool-results"])
         self.assertTrue(set(options) < set(self.planned("F1")))
         self.run_step("next", "--item", "4-check:F2")
         self.assertEqual(self.planned("F2"), [check for check in self.planned("F1") if check != "every-feature/tool-results"])
@@ -250,6 +251,34 @@ class ReduceStepTest(unittest.TestCase):
         record.write_text(record.read_text().replace("- notes/elsewhere |", f"- `{options[3].rpartition('/')[2]}` |")
                           .replace("| whoever |", "| `autonomous` (X1) |").replace("## Checks\n", "## Checks\n- open-review | absent | app.py:1 | asked what I would remove\n"))
         self.run_step("submit")
+
+    def test_each_feature_gets_the_language_checks_of_its_files_and_the_design_packet_lists_them(self):
+        files = {"web/form.ts": "export const a = 1\n", "web/view.tsx": 'import { Effect } from "effect"\n',
+                 "svc/main.go": "package main\n", "lib/pool.c": "int a;\n", "bin/tool": "#!/usr/bin/env python3\n", "notes.md": "x\n"}
+        for path, text in files.items():
+            (self.target / path).parent.mkdir(exist_ok=True)
+            (self.target / path).write_text(text)
+        git(self.target, "add", ".")
+        git(self.target, "commit", "-qm", "languages")
+        self.start()
+        fill(self.record("1-scope"), {"Features": ["F1 | Run | app.py; web/*; notes.md | app.py:1", "F2 | Other | svc/main.go; lib/pool.c; bin/tool | svc/main.go:1"],
+                                      "Sources": ["S1 | user | the request | \"reduce app.py\" | app.py:1"]})
+        self.run_step("submit")
+        self.submit_maps()
+        self.run_step("next")
+        self.assertIn(f"- `languages/go`: {SKILL}/checks/languages/go.md", (self.records / "design.packet.md").read_text())
+        self.submit_design()
+        expected = {"F1": ["languages/typescript", "languages/react", "languages/effect", "languages/python"],
+                    "F2": ["languages/c", "languages/go", "languages/python"]}
+        for feature, languages in expected.items():
+            self.run_step("next", "--item", f"4-check:{feature}")
+            self.assertEqual(sorted(check for check in self.planned(feature) if check.startswith("languages/")), sorted(languages))
+            for language in languages:
+                self.assertIn(f"### Check `{language}`", self.checks(feature))
+        self.reply("F2")
+        record = self.record("4-check", "F2")
+        record.write_text(record.read_text().replace("- languages/go | absent |", "- notes/go | absent |"))
+        self.assertIn("`## Checks` has no line for `languages/go`", self.run_step("submit", "--item", "4-check:F2", ok=False).stderr)
 
     def test_release_lists_items_for_parallel_agents_and_submits_them_by_key(self):
         self.submit_scope()
@@ -443,7 +472,7 @@ class ReduceStepTest(unittest.TestCase):
         self.assertIn("checks/unused-code/unused-export-parameter-or-branch.md): ", packet)
         self.assertIn("## Topics to look over", packet)
         review = self.records / "review.md"
-        lines = [f"{check} | absent | app.py:1-2 | read the whole target" for check in EVERY_FEATURE]
+        lines = [f"{check} | absent | app.py:1-2 | read the whole target" for check in [*EVERY_FEATURE, LANGUAGE]]
         fill(review, {"Capabilities": ["C1 | core | run returns a value | B1 | app.py:1"],
                       "Inventory": ["B1 | F1 | required | returns 1; run() returns it | app.py:2"],
                       "Checks": lines + ["unused-code | X1 | app.py:2 | the return has no reader"],

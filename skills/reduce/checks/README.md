@@ -3,7 +3,7 @@
 Each folder is one topic. Each file in a topic is one check, and each check belongs to one topic only. A case is a check that a sourced real case demonstrates.
 
 The check step lists every check of every topic in the feature's checks file, in the order of this index: its file and its pattern, from the check's **Signal** or **Look for** line. The reviewer reads a check's file only when its pattern appears, gives a topic without a pattern one `absent` line, and does an open review after the checks.
-The driver adds the folders that always apply: `every-feature` for every playbook, `unrelated-changes` for the `code` playbook, and `plans` for the `plan` playbook.
+The driver adds the folders that always apply: `every-feature` for every playbook, `unrelated-changes` for the `code` playbook, and `plans` for the `plan` playbook. It also adds each check of `languages` whose files appear in the feature.
 
 For the provenance and limits of the cases, see [case sources](../guides/case-sources.md).
 
@@ -16,7 +16,21 @@ Always applies. The driver adds these checks.
 - [A fresh design needs less](every-feature/fresh-design.md)
 - [The feature and its parts go down the ladder](every-feature/ladder.md)
 - [A behavior that nothing needs](every-feature/behavior-nothing-needs.md)
+- [The refactoring algorithm and the general style](every-feature/refactoring.md)
 - [A tool result](every-feature/tool-results.md)
+
+### `languages`
+
+The driver adds each check whose files appear in the feature: by extension, by a Python shebang, or by an import of React or Effect. The [refactoring check](every-feature/refactoring.md#language-rules) says how to apply them, and [rule sources](../guides/rule-sources.md) gives their licenses.
+
+- [C rules](languages/c.md): `.c`, `.h`, `.cu`, `.cuh`
+- [CUDA rules](languages/cuda.md): `.cu`, `.cuh`
+- [JavaScript and TypeScript rules](languages/typescript.md): `.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.mts`, `.cts`, `.tsx`, `.vue`
+- [React rules](languages/react.md): `.jsx`, `.tsx`, and files that import `react`
+- [Vue rules](languages/vue.md): `.vue`
+- [Effect rules](languages/effect.md): files that import `effect` or `@effect/`
+- [Go rules](languages/go.md): `.go`
+- [Python rules](languages/python.md): `.py`, `.pyi`, and Python shebang scripts
 
 ### `comments-and-docs`
 

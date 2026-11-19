@@ -17,6 +17,19 @@
     "2-quick",
     "6-close"
   ],
+  "languages": {
+    "languages/c": {"extensions": [".c", ".h", ".cu", ".cuh"]},
+    "languages/cuda": {"extensions": [".cu", ".cuh"]},
+    "languages/typescript": {"extensions": [".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".vue"]},
+    "languages/react": {"extensions": [".jsx", ".tsx"],
+                        "content": "from\\s+[\"']react(?:-dom)?(?:/[^\"']*)?[\"']|require\\([\"']react[\"']\\)",
+                        "content_extensions": [".js", ".mjs", ".ts", ".mts"]},
+    "languages/vue": {"extensions": [".vue"]},
+    "languages/effect": {"content": "from\\s+[\"'](?:effect|@effect/[^\"']+)(?:/[^\"']*)?[\"']",
+                         "content_extensions": [".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".vue"]},
+    "languages/go": {"extensions": [".go"]},
+    "languages/python": {"extensions": [".py", ".pyi"], "shebang": "python"}
+  },
   "always_check": {
     "every": [
       "every-feature"

@@ -14,5 +14,6 @@ Read [plan rules](../../guides/plan-rules.md) completely before this step.
 8. **1.8** List each tool result in `## Tool results` with the feature that it belongs to. Copy what the tool reports. A score, an empty scan, or a report from another revision is a result to check, never evidence of safety or completion. List the suspected defects that a tool reports, such as a security problem or a wrong result, apart from the reductions.
 
 List the features in `## Features`. Each feature gets one map record and its checks later.
+In the paths and entries column, include the code files that the plan changes. The driver selects the [language checks](../../checks/README.md#languages) from them.
 
 This step collects. Do not judge the target here: state no purpose of your own, propose no reduction, and trace no cause. The design step does that work with the map records.

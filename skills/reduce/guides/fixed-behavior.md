@@ -19,7 +19,7 @@ When implementation is requested, apply `autonomous` findings. Apply `user` find
 
 ## The ladder
 
-Apply these rungs in order to parts, features, and the whole target:
+Apply these rungs in order to parts, features, and the whole target. The [refactoring check](../checks/every-feature/refactoring.md) gives the order of the work inside the `remove` and `simplify` rungs, and the language checks give a rung to each rule:
 
 | Rung | Decision |
 |---|---|
