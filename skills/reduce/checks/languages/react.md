@@ -2,7 +2,7 @@
 
 **Signal.** The feature has `.jsx` or `.tsx` files, or JavaScript or TypeScript files that import `react`. The driver gives this check.
 
-**Decide with.** Apply every rule as [language rules](../every-feature/refactoring.md#language-rules) says. The rules assume React 19. A rule that names a later version needs it.
+**Decide with.** Apply every rule as [language rules](../every-feature/refactoring.md#language-rules) says. A rule that names a React version needs it. On an earlier version, the rule does not apply.
 
 **Keeps it when.** The rule's **Keep when** holds, or [the precedence](../every-feature/refactoring.md#precedence) overrides it.
 
@@ -35,12 +35,12 @@
 
 - R15. Do not read or write `ref.current` during render. `lead` [LI]
   Keep when: `ref.current === null` guards a one-time lazy initialization.
-- R16. Replace `forwardRef` wrappers with `ref` as a normal prop. `remove` [R19]
-- R17. Return a cleanup function from a ref callback, in place of handling a `null` call. `simplify` [R19]
+- R16. Replace `forwardRef` wrappers with `ref` as a normal prop. `remove` React 19 [R19]
+- R17. Return a cleanup function from a ref callback, in place of handling a `null` call. `simplify` React 19 [R19]
 
 ## Memoization
 
-- R18. With React Compiler, do not add `useMemo`, `useCallback`, or `memo` in new code. `remove` [RC]
+- R18. With React Compiler, do not add `useMemo`, `useCallback`, or `memo` in new code. `remove` React Compiler 1.0 [RC]
   Keep when: the memoized value is an Effect dependency that must not change without cause.
 - R19. Without React Compiler, do not add `useMemo` unless a measurement shows a slow calculation. `remove` [EF]
 
@@ -50,9 +50,9 @@
 - R21. Render components with JSX. Never call a component function directly. `lead` [RU]
 - R22. Call Hooks at the top level, before any early return, and never in loops or conditions. `lead` [RU]
   Keep when: the call is `use()`, which React 19 allows in conditions.
-- R23. Render `<Context value={v}>` in place of `<Context.Provider value={v}>`. `remove` [R19]
-- R24. Replace hand-written pending and error state of form submits with `useActionState` or form Actions. `remove` [R19]
-- R25. Render `<title>`, `<meta>`, and `<link>` in the component, not from an Effect or a helper library. `remove` [R19]
+- R23. Render `<Context value={v}>` in place of `<Context.Provider value={v}>`. `remove` React 19 [R19]
+- R24. Replace hand-written pending and error state of form submits with `useActionState` or form Actions. `remove` React 19 [R19]
+- R25. Render `<title>`, `<meta>`, and `<link>` in the component, not from an Effect or a helper library. `remove` React 19 [R19]
   Keep when: the page needs metadata features that the built-in support does not give.
 
 **Sources.**

@@ -18,14 +18,16 @@ Apply the five steps in order to each function and file of the feature. Stop at 
 
 ## General style
 
-- G1. Do not split code into more files.
-- G2. Keep lines to 80 columns where possible. Never exceed 100 columns.
-- G3. Do not put a loop body or a conditional body on the line of its loop or condition.
-- G4. Indent with 4 spaces. Do not align a continuation line with an opening parenthesis.
-- G5. Indent a continuation line 4 more spaces than the line that it continues.
-- G6. Use blank lines between blocks only to separate meaning, and only a few.
-- G7. Do not add source complexity or a shim to make code easier to test.
-- G8. Do not block off comments with lines of `---`, `###`, `===`, or similar characters.
+- G1. Do not split code into more files. `simplify`
+- G2. Keep lines to 80 columns where possible. Never exceed 100 columns. `lead`
+- G3. Do not put a loop body or a conditional body on the line of its loop or condition. `lead`
+- G4. Indent with 4 spaces. Do not align a continuation line with an opening parenthesis. `lead`
+- G5. Indent a continuation line 4 more spaces than the line that it continues. `lead`
+- G6. Use blank lines between blocks only to separate meaning, and only a few. `lead`
+- G7. Do not add source complexity or a shim to make code easier to test. `remove`
+- G8. Do not block off comments with lines of `---`, `###`, `===`, or similar characters. `remove`
+
+Apply G1 to G8 like the language rules below. A layout rule, G2 to G6, never gives a finding: record one lead for each file.
 
 Tests are important, but their length and their code quality do not count. Do not write a finding only to shorten a test.
 
@@ -45,7 +47,7 @@ Each language check is a rule list. A rule is not a signal: a line that breaks i
 
 - For the `code` playbook, apply the rules to the lines that the change adds or changes. For the `codebase` and `plan` playbooks, apply them to every line of the feature.
 - A rule tagged `remove`, `reuse`, or `simplify` gives a finding at that rung. Name the rule ID, such as `languages/go` G7.
-- A rule tagged `lead` removes nothing. Record each line that breaks it in `## Leads`, with the rule ID.
+- A rule tagged `lead` removes nothing. Record each line that breaks it in `## Leads`, with the rule ID. A quick review has no `## Leads`: list these lines in `## Report`, with the suspected defects.
 - Give one finding or one lead to each rule, with every location that breaks it. Do not write one finding for each line.
 - A rule that names a version applies only when the project's declared version meets it. Find the version in the manifest, such as `package.json`, `go.mod`, or `pyproject.toml`.
 - In `## Checks`, give each language check one line: its finding and lead IDs, or `absent` with the place that you examined.

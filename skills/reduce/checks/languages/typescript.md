@@ -63,7 +63,7 @@ The assert form is a thrown `Error`, or `assert` from `node:assert` in Node code
 - TS29. Write `import type` and `export type` for names that the module uses only as types. `lead` [G, TC]
 - TS30. Remove unused variables, imports, and trailing unused parameters. `remove` [TE, G]
   Keep when: a later parameter needs the position; prefix the unused name with `_`.
-- TS31. Do not write default exports. Use named exports. `simplify` [G]
+- TS31. Do not write default exports. Use named exports. `lead` [G]
   Keep when: a framework requires a default export, such as a route or page file.
 
 **Sources.**

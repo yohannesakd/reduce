@@ -9,7 +9,7 @@ The assert form is `panic`, only for states that only a bug produces. A failure 
 
 ## Errors and panics
 
-- GO1. Replace error returns for unreachable states or API misuse with one `panic`. Remove the callers' checks. `remove` [GBP]
+- GO1. Replace error returns for states that only a bug produces with one `panic`. Remove the callers' checks. `remove` [GBP]
 - GO2. Return an `error` for input, I/O, and other failures that a caller can cause. Do not panic. `lead` [CRC, GD, UB, EG]
   Keep when: setup cannot continue, or a `Must` function runs at program start.
 - GO3. Never discard a returned `error` with `_`. `lead` [CRC, EG]

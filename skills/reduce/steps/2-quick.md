@@ -37,7 +37,7 @@ Take every reference into account, but not in depth: look over each one, and dec
     - `intent`: it removes or changes a result on purpose. Name the entry IDs.
     - `autonomous`: it keeps every required and incidental result, stays within one owner, is easy to undo, and has source or scratch proof. A finding of 2.5 can also be `autonomous`.
     - `user`: it has the effect `intent`, changes an interface, contract, stored data, security, operations, or a visible result, spans owners, or is costly or hard to undo when wrong.
-12. **2.12** In `## Report`, write the verdict: complete, partial, or blocked, with the material coverage gaps. List the parity findings that matter most, then the intent findings, by their IDs. List the contingent reductions with the decision or evidence that blocks each. List suspected defects that are not reductions. End with the decisions for the user: for each `user` finding, one question, the options, and your recommendation.
+12. **2.12** In `## Report`, write the verdict: complete, partial, or blocked, with the material coverage gaps. List the parity findings that matter most, then the intent findings, by their IDs. List the contingent reductions with the decision or evidence that blocks each. List suspected defects that are not reductions, and the lines that break a rule tagged `lead`, by rule ID. End with the decisions for the user: for each `user` finding, one question, the options, and your recommendation.
 
 ## Record lines
 
