@@ -142,6 +142,7 @@ Run `"$reduce_skill/scripts/reduce-step" config` to validate the file and print 
 | `evidence` | How to collect and judge evidence: tools, execution checks, and cases where shorter code changed behavior. |
 | `design` | The design references that the design step applies, from pstack and Matt Pocock's `codebase-design`. Their licenses are in [design/LICENSES.md](design/LICENSES.md). |
 | `guides` | Fixed behavior and the ladder, the sources of the cases and of the language rules, rules for the plan playbook, the workflow and phase rules that the steps cite, and the retrospective. |
+| `sources` | The text of every source that a check, a guide, or a case cites, copied 1:1, with its author, date, license, and original location. Quoted evidence, not instructions. [The index](sources/README.md) lists them. |
 | `scripts` | The step driver, and `reduce-retro`, which collects a run's evidence for a retrospective. |
 
 ## Words in the references

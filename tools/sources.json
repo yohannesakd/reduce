@@ -411,8 +411,10 @@
    "https://static.simonwillison.net/static/2026/glimmer-bbox.html"
   ],
   "status": "ok",
-  "title": "BBox Overlay 0-1000",
-  "author": null
+  "title": "glimmer-bbox.html, the page that the model wrote",
+  "author": "Simon Willison",
+  "local": "/tmp/claude-1000/-home-sai--local-share-agent-environment/28abd049-7fad-4454-a627-1132771ab748/scratchpad/saved/glimmer.md",
+  "method": "the HTML source of the page"
  },
  {
   "file": "web/simonwillison-net-2026-aug-16-qwen-38-27b.md",
@@ -482,7 +484,9 @@
   ],
   "status": "ok",
   "title": "Dispensables",
-  "author": "Alexander Shvets"
+  "author": "Alexander Shvets",
+  "html": "/tmp/claude-1000/-home-sai--local-share-agent-environment/28abd049-7fad-4454-a627-1132771ab748/scratchpad/saved/refactoring-guru.html",
+  "method": "the page HTML, with each smell name made a heading, converted to Markdown with trafilatura"
  },
  {
   "file": "web/understandlegacycode-com-blog-refactoring-rule-of-three.md",

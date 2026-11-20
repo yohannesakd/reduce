@@ -28,4 +28,4 @@ python3 -m unittest discover tests
 
 The design references in `skills/reduce/design` come from pstack and `mattpocock/skills`. Their MIT notices are in [skills/reduce/design/LICENSES.md](skills/reduce/design/LICENSES.md).
 
-The refactoring check and the language checks adapt the PufferLib refactoring guide and the public style guides and documentation that [skills/reduce/guides/rule-sources.md](skills/reduce/guides/rule-sources.md) lists, with their licenses.
+The refactoring check and the language checks adapt the PufferLib refactoring guide and the public style guides and documentation that [skills/reduce/guides/rule-sources.md](skills/reduce/guides/rule-sources.md) lists, with their licenses. The skill keeps the full text of every cited source in [skills/reduce/sources](skills/reduce/sources/README.md). To add or refresh a source, run `tools/sources.py scan`, `fetch`, `relink`, and `index`. Then run `tools/sources.py check`.

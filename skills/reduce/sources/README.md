@@ -231,7 +231,7 @@ Each file names its author, its date, its original location, and how it was copi
 - [Project: coverband - The Ruby Toolbox](web/ruby-toolbox-com-projects-coverband.md)
 - [Qwen 3.8 27B is excellent, but it defaults to wildly overthinking things](web/simonwillison-net-2026-aug-16-qwen-38-27b.md)
 - [Chesterton's Fence and Explaining with Code Comments](web/spin-atomicobject-com-chestertons-fence-code-comments.md)
-- [BBox Overlay 0-1000](web/static-simonwillison-net-static-2026-glimmer-bbox-html.md)
+- [glimmer-bbox.html, the page that the model wrote](web/static-simonwillison-net-static-2026-glimmer-bbox-html.md)
 - [Glossary | Swagger Support | SmartBear](web/support-smartbear-com-swagger-contract-testing-docs-en-user-guide-troubleshooting-glossary.md)
 - [Reviewing AI-Written Tests: Six Failure Modes](web/tesbo-io-insights-roadmap-reviewing-ai-written-tests.md)
 - [4 Strategies To Remove Dead Code from your Ruby App](web/thoughtbot-com-blog-how-to-remove-dead-code-ruby.md)
