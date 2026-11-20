@@ -4,7 +4,7 @@ The [refactoring check](../checks/every-feature/refactoring.md) and the [languag
 
 ## Changes
 
-- The C and CUDA rules, the five steps, and the general style adapt the PufferLib guide. The other language rules paraphrase their sources and condense them into rules.
+- The refactoring check, the C check, and the CUDA check copy the text of the PufferLib guide 1:1. Each **Reduce:** line under a PufferLib line is an addition of reduce. The other language rules paraphrase their sources and condense them into rules.
 - Each rule has a reduce rung or the tag `lead`. Exceptions, version limits, the assert form, and the precedence are additions of reduce.
 - The language checks quote no long passages. Each rule cites the source pages that support it.
 
