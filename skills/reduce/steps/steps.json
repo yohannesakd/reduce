@@ -18,8 +18,6 @@
     "6-close"
   ],
   "languages": {
-    "languages/c": {"extensions": [".c", ".h", ".cu", ".cuh"]},
-    "languages/cuda": {"extensions": [".cu", ".cuh"]},
     "languages/typescript": {"extensions": [".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".vue"]},
     "languages/react": {"extensions": [".jsx", ".tsx"],
                         "content": "from\\s+[\"']react(?:-dom)?(?:/[^\"']*)?[\"']|require\\([\"']react[\"']\\)",

@@ -269,7 +269,7 @@ class ReduceStepTest(unittest.TestCase):
         self.assertIn(f"- `languages/go`: {SKILL}/checks/languages/go.md", (self.records / "design.packet.md").read_text())
         self.submit_design()
         expected = {"F1": ["languages/typescript", "languages/react", "languages/effect", "languages/python"],
-                    "F2": ["languages/c", "languages/go", "languages/python"]}
+                    "F2": ["languages/go", "languages/python"]}
         for feature, languages in expected.items():
             self.run_step("next", "--item", f"4-check:{feature}")
             self.assertEqual(sorted(check for check in self.planned(feature) if check.startswith("languages/")), sorted(languages))

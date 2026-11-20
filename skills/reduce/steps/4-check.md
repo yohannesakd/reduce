@@ -67,7 +67,7 @@ Write the reply in the record file that the packet names. Keep its three heading
 - A finding that would change an observable result is an `intent` finding. Removal of an `incidental` result is a contingent reduction.
 - Most slop-detector rules find bugs or security problems, such as a mutable default argument or disabled TLS verification. They are not reductions.
 - Record a suspected defect that is not a reduction in `## Leads`, as the packet says, and not as a finding. A line that breaks a language rule tagged `lead` is such a lead: name the rule ID. The report lists it apart from the reductions.
-- A language rule is a rule, not a signal: each line that breaks it gets a finding or a lead, unless its **Keep when** or [the precedence](../checks/every-feature/refactoring.md#precedence) overrides it.
+- A language rule is a rule, not a signal: each line that breaks it gets a finding or a lead, unless its **Unless** line or [the precedence](../checks/every-feature/refactoring.md#precedence) overrides it.
 - Do not turn a signal into a ban. A catch that salvages data, a lazy import for start-up time, and a flag that serves as a kill switch each have a legitimate reason. Their value depends on the actual call path.
 - Judge abstraction by concepts and reader effort, not by the number of files. Do not fragment what belongs together.
 - For each finding, name what disappears: a branch, state variable, owner, dependency, interface, or optional feature. Explain why the required behavior survives.

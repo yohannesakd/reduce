@@ -23,8 +23,6 @@ Always applies. The driver adds these checks.
 
 The driver adds each check whose files appear in the feature: by extension, by a Python shebang, or by an import of React or Effect. The [refactoring check](every-feature/refactoring.md#language-rules) says how to apply them, and [rule sources](../guides/rule-sources.md) gives their licenses.
 
-- [C rules](languages/c.md): `.c`, `.h`, `.cu`, `.cuh`
-- [CUDA rules](languages/cuda.md): `.cu`, `.cuh`
 - [JavaScript and TypeScript rules](languages/typescript.md): `.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.mts`, `.cts`, `.tsx`, `.vue`
 - [React rules](languages/react.md): `.jsx`, `.tsx`, and files that import `react`
 - [Vue rules](languages/vue.md): `.vue`

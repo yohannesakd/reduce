@@ -4,7 +4,7 @@ The [refactoring check](../checks/every-feature/refactoring.md) and the [languag
 
 ## Changes
 
-- The refactoring check, the C check, and the CUDA check copy the text of the PufferLib guide 1:1. Each **Reduce:** line under a PufferLib line is an addition of reduce. The other language rules paraphrase their sources and condense them into rules.
+- The refactoring check copies the PufferLib guide 1:1, without its C and CUDA sections. Its tables and the precedence are additions of reduce. The language rules paraphrase their sources and condense them into rules. Rules marked [RD] are rules of reduce.
 - Each rule has a reduce rung or the tag `lead`. Exceptions, version limits, the assert form, and the precedence are additions of reduce.
 - The language checks quote no long passages. Each rule cites the source pages that support it.
 
@@ -12,8 +12,9 @@ The [refactoring check](../checks/every-feature/refactoring.md) and the [languag
 
 | Checks | Source | License |
 |---|---|---|
-| refactoring, C, CUDA | [PufferLib `SKILL_ISSUES.md`](https://github.com/PufferAI/PufferLib/blob/5.0/SKILL_ISSUES.md), PufferAI | MIT, notice below |
+| refactoring | [PufferLib `SKILL_ISSUES.md`](https://github.com/PufferAI/PufferLib/blob/5.0/SKILL_ISSUES.md), PufferAI | MIT, notice below |
 | JavaScript and TypeScript | [typescript-eslint](https://typescript-eslint.io) | MIT |
+| JavaScript and TypeScript | [ESLint](https://eslint.org) | MIT |
 | JavaScript and TypeScript | [TypeScript documentation](https://www.typescriptlang.org/docs/) | CC BY 4.0 |
 | JavaScript and TypeScript | [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html) | CC BY 3.0 |
 | React | [react.dev](https://react.dev) | CC BY 4.0 |

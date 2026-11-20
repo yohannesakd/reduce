@@ -19,7 +19,7 @@ The work has one shape:
 Each step does its own work only. The scope step and the map step do not judge the target, and the purpose is stated once, in the design review.
 
 The checks are the files in [checks](checks/README.md). They come from good practices, slop patterns, and sourced real cases.
-Every feature gets the [refactoring check](checks/every-feature/refactoring.md): the PufferLib refactoring algorithm, the general style, and the precedence between rules. Each feature also gets the strict [language checks](checks/README.md#languages) that its files match: C, CUDA, JavaScript and TypeScript, React, Vue, Effect, Go, and Python. The driver selects them, and puts them in full in each checks file. The design and close steps apply the same checks to every design and every change of code.
+Every feature gets the [refactoring check](checks/every-feature/refactoring.md): the PufferLib refactoring algorithm, the general style, and the precedence between rules. Each feature also gets the strict [language checks](checks/README.md#languages) that its files match: JavaScript and TypeScript, React, Vue, Effect, Go, and Python. The driver selects them, and puts them in full in each checks file. The design and close steps apply the same checks to every design and every change of code.
 A check that finds nothing still gets a record. A skipped check and a clean check must look different.
 A quick run does steps 2 to 5 in one review, without subagents. It looks over every check topic and design reference, and studies only those that apply. See [modes](#modes).
 
