@@ -37,4 +37,4 @@ An assertion about a default value does not prove that the option controls anyth
 
 **Reduce fit.** `remove`. An externally settable field is an accepted input. When its consumers are unknown, the unit is `unresolved`.
 
-[Configuration diff at the cleanup commit](https://github.com/phfarath/Strata/commit/72045cc07e8459ff97d861c46cffcac57b30d7ce). [Previous schema](https://github.com/phfarath/Strata/blob/8207ddf1e0996a4fe73e32e71a0a835caebc24bd/crates/strata-core/src/schemas.rs).
+[Configuration diff at the cleanup commit](../../sources/github/phfarath-strata-commit-72045cc07e.md). [Previous schema](../../sources/github/phfarath-strata-crates-strata-core-src-schemas-rs.md).

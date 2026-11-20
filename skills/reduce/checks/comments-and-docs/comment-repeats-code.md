@@ -34,4 +34,4 @@ When a task deletes code, the documentation describes the current state, not the
 
 **Keeps it when.** The text states a constraint or reason that code cannot express, or readers need it: a contract, usage, operations, or a notice. A migration guide or changelog is the contract for readers who upgrade, so it keeps its history.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code), [@quasicoh](https://x.com/quasicoh/status/2100393667311906993), [sloppylint](https://github.com/rsionnach/sloppylint).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md), [Kevin Lin](../../sources/x/quasicoh-2100393667311906993.md), [sloppylint](../../sources/github/rsionnach-sloppylint.md).

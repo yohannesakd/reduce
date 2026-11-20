@@ -10,4 +10,4 @@ Both designs must meet the same acceptance checks.
 
 **Source.** Andrej Karpathy reports generated code with bloated APIs, abstractions, and dead code. A request for a simpler construction gave about 100 lines in place of 1,000.
 He recommends explicit success criteria and a simple, likely correct baseline before optimization. The line counts are his account, not a published measurement.
-[Original X post](https://x.com/karpathy/status/2015883857489522876), 26 January 2026. [Archived post](https://jaytaylor.com/notes/node/1769465010000.html).
+[Original X post](../../sources/x/karpathy-2015883857489522876.md), 26 January 2026. [Archived post](../../sources/web/jaytaylor-com-notes-node-1769465010000-html.md).

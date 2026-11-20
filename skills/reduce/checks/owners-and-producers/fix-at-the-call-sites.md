@@ -17,4 +17,4 @@ def get_value(row, key):
 
 **Keeps it when.** Another consumer of the producer needs the raw value. Then the fix stays at the call sites that need it.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md).

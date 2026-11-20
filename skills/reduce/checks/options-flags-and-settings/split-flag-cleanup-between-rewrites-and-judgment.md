@@ -17,4 +17,4 @@ Deterministic tools handle mechanical cases, such as removing a default that not
 
 **Reduce fit.** `remove` across units, with the flag state as evidence in the check step. A kill switch that a source requires is `keep`.
 
-[Uber post on X](https://x.com/UberEng/status/2112604623454470476). [Search summary of the post](https://www.uber.com/us/en/blog/ai-code-cleanup/). [Piranha, the earlier tool](https://eng.uber.com/piranha/).
+[Uber post on X](../../sources/x/ubereng-2112604623454470476.md). [Search summary of the post](../../sources/web/uber-com-us-en-blog-ai-code-cleanup.md). [Piranha, the earlier tool](../../sources/web/eng-uber-com-piranha.md).

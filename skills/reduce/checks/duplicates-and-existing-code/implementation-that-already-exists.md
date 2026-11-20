@@ -21,4 +21,4 @@ Confirm that the existing implementation gives the required result for the inven
 
 **Keeps it when.** The existing implementation does not give every `required` result. Or it runs in another place with another user, directory, variables, PATH, or permissions, and no run there decides it.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code), [More Code, Less Reuse](https://arxiv.org/abs/2601.21276v1), [GitClear](https://www.gitclear.com/ai_assistant_code_quality_2025_research).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md), [More Code, Less Reuse](../../sources/papers/arxiv-2601.21276.md), [GitClear](../../sources/web/gitclear-com-ai-assistant-code-quality-2025-research.md).

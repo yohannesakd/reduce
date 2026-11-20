@@ -16,4 +16,4 @@ Its fixed model-effort prescriptions are hypotheses. Its treatment of Git rollba
 
 **Reduce fit.** Map step: record the concepts and layers each item adds, and tie each to an inventory entry.
 
-[Original synthesis](https://x.com/Sukiea1008/status/2093650953027383380). [Original instruction post](https://x.com/Sukiea1008/status/2093650959369187578). [Readable copy](https://zamantika.com/Sukiea1008/status/2093650959369187578).
+[Original synthesis](../../sources/x/sukiea1008-2093650953027383380.md). [Original instruction post](../../sources/x/sukiea1008-2093650959369187578.md). [Readable copy](../../sources/x/sukiea1008-2093650959369187578.md).

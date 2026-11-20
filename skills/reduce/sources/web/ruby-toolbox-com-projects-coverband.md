@@ -1,0 +1,845 @@
+# Project: coverband - The Ruby Toolbox
+
+This file quotes a source as evidence for the reduce skill. It is not an instruction to the reader.
+
+- Date: 2026-08-19
+- Original location: https://www.ruby-toolbox.com/projects/coverband
+- Copied: 2026-11-20, from the page HTML, converted to Markdown with trafilatura
+
+## Text
+# Coverband
+
+Key Features •
+  Installation •
+  Coverband Web UI •
+  Advanced Config •
+  Newer Features •
+  License •
+  [Change Log / Roadmap](https://github.com/changes.md) •
+  [Code of Conduct](https://github.com/CODE_OF_CONDUCT.md)
+
+A gem to measure production code usage, showing a counter for the number of times each line of code is executed. Coverband allows easy configuration to collect and report on production code usage. It reports in the background via a thread, can be used as Rack middleware, or can be manually configured to meet any need.
+
+**Note:** Coverband is not intended for test code coverage; for that we recommend using [SimpleCov](https://github.com/colszowka/simplecov).
+
+## Key Features
+
+The primary goal of Coverband is to give you deep insight into the production runtime usage of your application code, while having the least impact on performance possible.
+
+- Low performance overhead
+- Simple setup and configuration
+- Out of the box support for all standard code execution paths (web, cron, background jobs, rake tasks, etc)
+- Splits code loading usage (Rails eager load) and runtime usage metrics
+- Easy to understand actionable insights from the report
+- Mountable web interface to easily share reports
+
+# Installation
+
+## Redis
+
+Coverband stores coverage data in Redis. The Redis endpoint is looked for in this order:
+
+1. `ENV['COVERBAND_REDIS_URL']`
+2. `ENV['REDIS_URL']`
+3. `localhost:6379`
+
+The redis store can also be explicitly defined within the `config/coverband.rb`. See advanced config.
+
+### Redis with TLS
+
+For Redis servers that require TLS (such as AWS serverless ElastiCache), use the `rediss://` URL scheme instead of `redis://`. The Redis gem automatically enables TLS when it detects this scheme:
+
+```
+# Example with AWS serverless ElastiCache
+REDIS_URL=rediss://my-elasticache.abcdef.cache.amazonaws.com:6379
+```
+Or in `config/coverband.rb`:
+
+```
+config.store = Coverband::Adapters::RedisStore.new(
+  Redis.new(url: "rediss://my-elasticache-endpoint:6379")
+)
+```
+The `rediss://` scheme works with:
+
+- AWS ElastiCache (serverless or provisioned with required TLS)
+- Any self-hosted Redis with TLS enabled
+- Other managed Redis services that require TLS
+
+## Gem Installation
+
+Add these lines to your application's `Gemfile`, remember to `bundle install` after updating:
+
+```
+gem 'coverband'
+gem 'redis' # the default store
+```
+Redis is the default store and needs no configuration beyond a reachable Redis. Since Coverband 7.0 the `redis` gem is no longer installed for you, so add it yourself as above. If you would rather keep coverage somewhere else (Solid Cache, memcached, files), leave out `redis` and set `config.store`, see ActiveSupport::Cache Store. Without the `redis` gem and without a configured store, Coverband logs a warning at boot and records nothing. Upgrading from 6.x? See Upgrading to 7.0.
+
+### No custom code or middleware required
+
+With older versions of Coverband, projects would report to redis using rack or sidekiq middleware. After Coverband 4.0, this should no longer be required and could cause performance issues. Reporting to redis is now automatically done within a background thread with no custom code needed.
+
+See [changelog](https://github.com/danmayer/coverband/blob/main/changes.md).
+
+## Rails
+
+The Railtie integration means you shouldn't need to do anything else other than ensure Coverband is required after Rails within your Gemfile.
+
+## Sinatra
+
+For the best coverage, you want this loaded as early as possible. We recommend requiring cover band directly in the `config.ru`. Requiring Coverband within an initializer could also work, but you may end up missing some boot up coverage. To start collection require Coverband as early as possible.
+
+```
+require 'coverband'
+require File.dirname(__FILE__) + '/config/environment'
+use Coverband::BackgroundMiddleware
+run ActionController::Dispatcher.new
+```
+## Upgrading to 7.0
+
+7.0 is a major release with breaking changes. Most apps only need the first two steps. The full list is in the [changelog](https://github.com/danmayer/coverband/blob/main/changes.md).
+
+1. **Add the `redis` gem if you use Redis.** Coverband no longer installs it for you. Redis is still the default store and still needs no other configuration once the gem is in your Gemfile:
+gem 'coverband' gem 'redis' Without it, and without a configured `config.store`, Coverband logs a warning at boot and records nothing.
+2. **Coverage starts fresh.** The storage format changed, so data recorded by 6.x is ignored rather than migrated. Once you are happy with the new data, delete the old keys with `rake coverband:clear_legacy` (Redis only).
+3. **Delete removed settings from `config/coverband.rb`.** These now do nothing. Assigning one logs a warning naming the setting, but the app still boots:
+Setting What to do `reporter`Delete it. It has had no effect since Coverband 5.0. `api_key`, `service_url`, `coverband_timeout`, `service_dev_mode`, `service_test_mode`, `process_type`Delete them, see the coverband.io step below. `s3_region`, `s3_bucket`, `s3_access_key_id`, `s3_secret_access_key`, `track_gems`, `gem_details`, `simulate_oneshot_lines_coverage`Delete them. They were already no-ops.
+4. **coverband.io users: configure a store.** coverband.io is no longer maintained, so reporting to it (`WebServiceStore`) has been removed, along with `config/coverband_service.rb` and the `COVERBAND_API_KEY`, `COVERBAND_URL`, `COVERBAND_ENABLE_DEV_MODE`, `COVERBAND_ENABLE_TEST_MODE`, and `PROCESS_TYPE` environment variables. Move any settings from `config/coverband_service.rb` into `config/coverband.rb` and use Redis (step 1) or an ActiveSupport::Cache store.
+5. `MemcachedStore` users: switch to `ActiveSupportCacheStore`.`MemcachedStore` has been removed. The replacement takes the same cache and adds tracker support:
+\# before config.store = Coverband::Adapters::MemcachedStore.new(cache, memcached\_namespace: "myapp") # after config.store = Coverband::Adapters::ActiveSupportCacheStore.new(cache, cache\_namespace: "myapp")
+6. **Custom code against Coverband internals.** Only relevant if you wrote a tracker or call adapters directly:
+  - In a custom tracker, use `storage` instead of `redis_store`.
+  - Instead of `store.raw_store`, use `store.cleanup` (`clear_legacy!`, `clear_orphans!`), which returns `nil` for stores that cannot enumerate keys.
+  - Replace calls to the misspelled `Coverband::Utils::Results#runtime_relavent_lines` with `#runtime_relevant_lines`; the old spelling was removed in 7.0.
+  - `Coverband::Utils::SourceFile` and `Coverband::Utils::Result` take stored report records (`{"data" => [...]}`) rather than bare line arrays.
+
+## Coverband Web UI
+
+You can check it out locally by running the [Coverband Demo App](https://github.com/danmayer/coverband_rails_example).
+
+
+- View a shared demo at [https://coverband-rails-example.onrender.com/](https://coverband-rails-example.onrender.com/)
+- View overall coverage information
+- Drill into individual file coverage
+- View individual file details
+- Clear Coverage - disabled by default as it could be considered a dangerous operation in production. Enable with `config.web_enable_clear` or leave off and clear from the rake task.
+  - Clear coverage report This will clear the coverage data. This wipes out all collected data.
+  - Clear individual file coverage This will clear the details of the file you are looking at. This is helpful if you don't want to lose all Coverage data but made a change that you expect would impact a particular file.
+- Force coverage collection This triggers coverage collection on the current webserver process. Useful in development but confusing in production environments where many ruby processes are usually running.
+
+#### Interpreting results
+
+The columns in the web UI are as follows:
+
+- **% covered** - Percentage of relevant lines covered, during either eager loading or runtime
+- **% runtime** - Percentage of the runtime relevant lines that were hit at runtime. Runtime relevant lines are the relevant lines that were *not* hit while the application eager loaded, so this is the share of the code that only real usage can exercise (method bodies, branches, etc.) which real usage actually exercised
+- **Lines** - Total lines in the file including lines unreachable or uncover-able. An unreachable line would be an empty line with no code, comments, or `end` statements.
+- **Relevant lines** - Lines that are coverable, i.e. not empty
+- **Lines covered** - Relevant lines hit during either eager loading or runtime
+- **Lines runtime** - Relevant lines hit at least once at runtime
+- **Lines missed** - Relevant lines not covered
+- **Avg hits/line** - Total of coverage to the file divided by relevant lines.
+
+The individual file view also lists the file's **runtime relevant lines**, the denominator of **% runtime**. A file only reports 100% runtime when every one of its runtime relevant lines was hit at runtime. If a file was never eager loaded (the default in development), every relevant line is runtime relevant, so **% runtime** matches **% covered**.
+
+**Lines runtime** can include load time lines such as class and method definitions. Those lines are hit at runtime when a process loads the file lazily after Coverband switched to runtime coverage, e.g. a console, runner, or job process that does not eager load. Such lines still count as eager loaded for **% runtime** as long as any process loaded them during eager loading.
+
+When viewing an individual file, a line of code such as a class or method definition may appear green because it is eager loaded by the application, but still not be hit at all in runtime by actual users. Each line's badge shows its `load` (eager loading) and `runtime` hit counts separately.
+
+#### Coverage first seen and Last activity recorded
+
+In the context of Coverband, a file is considered relevant for monitoring if it is located within certain specified project paths. Specifically, Coverband monitors all \*.rb files located in the following paths:
+
+- app/
+- lib/
+- config/
+
+This applies as long as these files are not included in the list of exclusions defined in "config.ignore".
+
+#### Coverage first seen
+
+This attribute shows the exact date and time when Coverband first detected the file. This detection happens when:
+
+- The file is loaded by Ruby (e.g., during application startup in Rails via autoload or require).
+- The file becomes relevant for monitoring, even if no lines within it have been executed yet.
+- By default, Coverband resets a file’s coverage data and updates its “Coverage first seen” timestamp whenever the file changes, ensuring the coverage reflects the file’s new state.
+
+#### Last activity recorded
+
+This attribute shows the most recent time when any line in the file was executed at runtime. It specifically reflects runtime execution and does not include the file’s load time.
+
+- When any line in the file is executed at runtime (e.g., a method is called, a route is triggered, or a conditional is evaluated), Coverband updates the “Last activity recorded” timestamp.
+- This only occurs when the file’s lines are actually executed. If a file is loaded but none of its lines are executed, the “Last activity recorded” timestamp will not be updated.
+- It helps determine if a file is actively being used in the application. If a file has no recent activity, it may be a candidate for review or removal.
+
+#### Example
+
+- If a file has a “Coverage first seen” timestamp but no “Last activity recorded”, this indicates that the file is being loaded but no runtime activity is occurring (e.g., it contains unused methods or classes).
+- If both attributes are populated and the “Last activity recorded” timestamp is recent, the file is actively used in the application.
+
+### Mounting as a Rack App
+
+Coverband comes with a mountable rack app for viewing reports. For Rails this can be done in `config/routes.rb` with:
+
+```
+Rails.application.routes.draw do
+  mount Coverband::Reporters::Web.new, at: '/coverage'
+end
+```
+But don't forget to *protect your source code with proper authentication*. Something like this when using devise:
+
+```
+Rails.application.routes.draw do
+  authenticate :user, lambda { |u| u.admin? } do
+    mount Coverband::Reporters::Web.new, at: '/coverage'
+  end
+end
+```
+or you can enable basic auth by setting `ENV['COVERBAND_PASSWORD']` or via your configuration `config.password = <YOUR_COMPLEX_UNGUESSABLE_PASSWORD>`
+
+### Standalone
+
+The coverage server can also be started standalone with a rake task:
+
+```
+bundle exec rake coverband:coverage_server
+```
+The web UI should then be available here: [http://localhost:9022/](http://localhost:9022/)
+
+If you want to run on an alternative port:
+
+```
+COVERBAND_COVERAGE_PORT=8086 bundle exec rake coverband:coverage_server
+```
+This is especially useful for projects that are api only and cannot support the mounted rack app. To get production coverage, point Coverband at your production redis server and ensure to checkout the production version of your project code locally.
+
+```
+ COVERBAND_REDIS_URL=redis://username:password@redis_production_server:2322 bundle exec rake coverband:coverage_server
+```
+# Coverband Demo
+
+Take Coverband for a spin on the live Heroku deployed [Coverband Demo](https://coverband-demo.herokuapp.com/). The [full source code for the demo](https://github.com/danmayer/coverband_demo) is available to help with installation, configuration, and understanding of basic usage.
+
+### Example apps
+
+# Advanced Config
+
+If you need to configure Coverband, this can be done by creating a `config/coverband.rb` file relative to your project root.
+
+- See [lib/coverband/configuration.rb](https://github.com/danmayer/coverband/blob/main/lib/coverband/configuration.rb) for all options
+- By default Coverband will try to store data to Redis (when the `redis` gem is installed) \* Redis endpoint is looked for in this order: `ENV['COVERBAND_REDIS_URL']`, `ENV['REDIS_URL']`, or `localhost`
+
+Below is an example config file for a Rails 5 app:
+
+```
+# config/coverband.rb NOT in the initializers
+Coverband.configure do |config|
+  config.store = Coverband::Adapters::RedisStore.new(Redis.new(url: ENV['MY_REDIS_URL']))
+  config.logger = Rails.logger
+  # config options false, true. (defaults to false)
+  # true and debug can give helpful and interesting code usage information
+  # and is safe to use if one is investigating issues in production, but it will slightly
+  # hit perf.
+  config.verbose = false
+  # default false. button at the top of the web interface which clears all data
+  config.web_enable_clear = true
+  # default false. Experimental support for routes usage tracking.
+  config.track_routes = true
+end
+```
+### Working with environment variables
+
+Do you use figaro, mc-settings, dotenv or something else to inject environment variables into your app? If so ensure you have that done BEFORE Coverband is required.
+
+For example if you use dotenv, you need to do this, see [https://github.com/bkeepers/dotenv#load-order](https://github.com/bkeepers/dotenv#load-order)
+
+```
+gem 'dotenv', require: 'dotenv/load'
+gem 'coverband'
+gem 'other-gem-that-requires-env-variables'
+```
+### Ignoring Files
+
+Sometimes you have files that are known to be valuable, perhaps in other environments or something that is just run very infrequently. Opposed to having to mentally filter them out of the report, you can just have them ignored in the Coverband reporting by using `config.ignore` as shown below. Ignore takes a string but can also match with regex rules see how below ignores all rake tasks as an example.
+
+```
+config.ignore +=  ['config/application.rb',
+                   'config/boot.rb',
+                   'config/puma.rb',
+                   'config/schedule.rb',
+                   'bin/.*',
+                   'config/environments/.*',
+                   'lib/tasks/.*']
+```
+**Ignoring Custom Gem Locations:** Note, if you have your gems in a custom location under your app folder you likely want to add them to `config.ignore`. For example, if you have your gems not in the default ignored location of `app/vendor` but in `app/gems`, you would need to add `gems/*` to your ignore list.
+
+### View Tracking
+
+Coverband allows an optional feature to track all view files that are used by an application.
+
+This feature is enabled by default. To stop this feature, disable the feature in your Coverband config.
+
+`config.track_views = false`
+
+#### ViewComponent Support
+
+Coverband can also track [ViewComponent](https://viewcomponent.org/) renders. This requires:
+
+- ViewComponent **>= 4.6.0**
+- Instrumentation enabled in your app config:
+
+```
+# config/application.rb (or environment-specific config)
+config.view_component.instrumentation_enabled = true
+```
+When enabled, Coverband subscribes to the `render.view_component` notification and tracks which component templates are rendered, just like standard Rails views.
+
+### Query Burst Tracking
+
+Coverband includes an optional Query Burst Tracker to monitor SQL activity per request and per background job in production. It helps identify potential N+1 query issues and bursty database behavior.
+
+Enable it in your Coverband configuration:
+
+```
+Coverband.configure do |config|
+  config.track_query_bursts = true
+  # Thresholds used to flag heavy requests/jobs
+  config.query_burst_query_count_threshold = 30
+  config.query_burst_sql_time_threshold_ms = 100.0
+end
+```
+When enabled, Coverband records stats by execution context (for example controller/action and ActiveJob class) and exposes them in the Query Burst Tracker tab in the web UI.
+
+#### Threshold Settings
+
+- `query_burst_query_count_threshold`:
+  - Max SQL query count allowed for a single tracked execution (one request or one job run).
+  - If query count is greater than or equal to this value, it is counted as a threshold hit.
+- `query_burst_sql_time_threshold_ms`:
+  - Max total SQL time (in milliseconds) allowed for a single tracked execution.
+  - If SQL time is greater than or equal to this value, it is counted as a threshold hit.
+
+Threshold logic is OR-based: Coverband records a threshold hit if either threshold is exceeded.
+
+#### What You See in the UI
+
+For each tracked key, the Query Burst Tracker reports:
+
+- Requests: Number of tracked executions
+- Total SQL Calls: Sum of all SQL calls across executions
+- Total SQL ms: Sum of SQL time across executions
+- Max SQL Calls: Highest query count seen in one execution
+- Max SQL ms: Highest SQL time seen in one execution
+- Threshold Hits: Number of executions that exceeded either threshold
+
+#### How To Tune Thresholds
+
+- Start with defaults (`30` queries, `100.0` ms SQL time).
+- Lower thresholds to detect smaller regressions sooner.
+- Raise thresholds if you see too much noise from expected heavy endpoints/jobs.
+- Tune by endpoint/job behavior: latency-sensitive paths often need stricter limits than batch work.
+
+Tip: use this tracker in production-like traffic, where query patterns are most realistic.
+
+### Writing a Custom Tracker
+
+Trackers can be shipped by an application or a separate gem without changing Coverband. A tracker subclasses `Coverband::Collectors::AbstractTracker`, registers itself once when its file is required, and is initialized at Rails boot when its enablement block returns true.
+
+```
+# lib/my_app/coverband/feature_flag_tracker.rb
+class FeatureFlagTracker < Coverband::Collectors::AbstractTracker
+  # required: the path this tracker reports on inside the Coverband web report,
+  # and the label for its tab
+  REPORT_ROUTE = "feature_flag_tracker"
+  TITLE = "Feature Flags"
+  def railtie!
+    tracker = self
+    ActiveSupport::Notifications.subscribe("feature_flag.my_app") do |_name, _start, _finish, _id, payload|
+      tracker.track_key(payload.fetch(:key))
+    end
+  end
+  private
+  def concrete_target
+    MyApp::FeatureFlags.all.map(&:key)
+  end
+end
+Coverband::Configuration.add_tracker_flag(:track_feature_flags, default: false)
+Coverband::Collectors::TrackerRegistry.register(
+  :feature_flag_tracker,
+  tracker_class: FeatureFlagTracker,
+  enabled: ->(config) { config.track_feature_flags }
+)
+```
+Require the tracker before enabling it in `config/coverband.rb`:
+
+```
+require "my_app/coverband/feature_flag_tracker"
+Coverband.configure do |config|
+  config.track_feature_flags = true
+end
+```
+Every tracker must declare its own `REPORT_ROUTE`. `AbstractTracker`'s default of `"/"` matches every path in the web report, so a tracker that inherits it would answer all of Coverband's own report routes. Registering such a tracker raises `ArgumentError` rather than letting it take over the UI.
+
+`tracker_class` may also be a callable that returns a tracker instance when initialization needs to choose an implementation. Registration and enablement are evaluated at boot, not on every request. Duplicate tracker names raise `ArgumentError` so load-order mistakes fail early. Coverband's Query Burst Tracker is a bundled example of the same registration pattern.
+
+Trackers registered this way have no dedicated `Coverband.configuration` accessor, so reach them by their registered name:
+
+```
+Coverband.configuration.tracker_for(:feature_flag_tracker)
+Coverband.track_key(:feature_flag_tracker, "flags.new_checkout")
+```
+### Hiding settings
+
+Coverband provides a view of all of its current settings. Sometimes you might want to hide this view, such as when sharing coverband data with a large number of developers of varying trust levels. You can disable the settings view like so:
+
+`config.hide_settings = true`
+
+### Dead-code review session
+
+The web report includes a client-side "dead-code session" toolbar to help drive code-removal work:
+
+- Hide files or whole folders from the report via the ✕ icon that appears when hovering path segments, or hide everything with runtime % > 0 with one toggle.
+- Mark files or folders for deletion via the 🗑 icon (with an optional comment). Marked items disappear from the view and are listed in the "Marked for deletion" modal.
+- Export the marked list as a CSV (`path,comment,marked_at`) to feed a code-removal PR process.
+
+Session state lives in your browser's localStorage: "Reset session" clears the hidden set; "Start over" (in the modal) clears the marked list.
+
+### Dark mode
+
+The web report follows your operating system's appearance setting through the CSS `prefers-color-scheme` media query. There is nothing to configure and no toggle in the UI: if your desktop is in dark mode, the report is dark, and it switches back when your desktop does. Printing always uses the light theme.
+
+The coverage row colors (covered / missed / never / skipped) are chosen for contrast on the dark surface rather than darkened mechanically, so the states stay as easy to tell apart as in the light theme.
+
+If you restyle the report, every color in `public/application.css` resolves through a custom property defined on `:root`, and the dark theme is a single `@media (prefers-color-scheme: dark)` block that redefines those properties. Overriding a property is enough to change both themes from one place.
+
+### Fixing Coverage Only Shows Loading Hits
+
+If all your coverage is being counted as loading or eager\_loading coverage, and nothing is showing as runtime Coverage the initialization hook failed for some reason. The most likely reason for this issue is manually calling `eager_load!` on some Plugin/Gem. If you or a plugin is altering the Rails initialization process, you can manually flip Coverband to runtime coverage by calling these two lines, in an `after_initialize` block, in `application.rb`.
+
+```
+config.after_initialize do
+  unless Coverband.tasks_to_ignore?
+    Coverband.report_coverage # record the last of the loading coverage
+    Coverband.runtime_coverage! # set all future coverage to runtime
+  end
+end
+```
+or if you know you are manually calling eager load anywhere in your initialization process immediately after call those two lines. A user reported an issue after calling `ResqueWeb::Engine.eager_load!` for example.
+
+```
+Rails.application.routes.draw do
+  ResqueWeb::Engine.eager_load!
+  Coverband.report_coverage
+  Coverband.runtime_coverage!
+end
+```
+### Avoiding Cache Stampede
+
+If you have many servers and they all hit Redis at the same time you can see spikes in your Redis CPU, and memory. This is due to a concept called [cache stampede](https://en.wikipedia.org/wiki/Cache_stampede).
+
+It is better to spread out the reporting across your servers. A simple way to do this is to add a random wiggle on your background reporting. This configuration option allows a wiggle. The right amount of wiggle depends on the number of servers you have and how willing you are to have delays in your coverage reporting. I would recommend at least 1 second per server. Note, the default wiggle is set to 30 seconds.
+
+Add a wiggle (in seconds) to the background thread to avoid all your servers reporting at the same time:
+
+`config.reporting_wiggle = 30`
+
+The default 30-second wiggle is suitable for most deployments. For larger fleets you may want to increase the wiggle proportionally (e.g. 1 second per server). The tradeoff is a small delay in coverage reporting freshness. The `reporting_wiggle` and `background_reporting_sleep_seconds` options work together — consider configuring both when tuning background reporting for your environment.
+
+Another way to avoid cache stampede is to omit some reporting on starting servers. Coverband stores the results of eager\_loading to Redis at server startup. The eager\_loading results are the same for all servers, so there is no need to save all results. By configuring the eager\_loading results of some servers to be stored in Redis, we can reduce the load on Redis during deployment.
+
+```
+# To omit reporting on starting servers, need to defer saving eager_loading data
+config.defer_eager_loading_data = true
+# Store eager_loading data on 5% of servers
+config.send_deferred_eager_loading_data = rand(100) < 5
+# Store eager_loading data on servers with the environment variable
+config.send_deferred_eager_loading_data = ENV.fetch('ENABLE_EAGER_LOADING_COVERAGE', false)
+```
+Note: `defer_eager_loading_data = true` is required in order to use `send_deferred_eager_loading_data`. With both set, eager\_loading data is deferred at startup and only sent by the subset of servers where `send_deferred_eager_loading_data` evaluates to `true`.
+
+### Oneshot Mode
+
+Enabling [oneshot mode](https://docs.ruby-lang.org/en/master/Coverage.html#module-coverage-oneshot-lines-coverage) reduces the Ruby CPU overhead. The tradeoff is that you no longer get frequency data — you will only know whether a line was executed at least once, not how many times.
+
+`config.use_oneshot_lines_coverage = true`
+### Redis Hash Store
+
+Coverband on very high volume sites with many server processes reporting can have a race condition which can cause hit counts to be inaccurate. To resolve the race condition and reduce Ruby memory overhead we have introduced a new Redis storage option. This moves the some of the work from the Ruby processes to Redis. It is worth noting because of this, it has larger demands on the Redis server. So adjust your Redis instance accordingly. To help reduce the extra redis load you can also change the background reporting frequency.
+
+- To use Redis Hash Store: `config.store = Coverband::Adapters::HashRedisStore.new(Redis.new(url: redis_url))`
+- Adjust from default 30s reporting `config.background_reporting_sleep_seconds = 120`
+
+See more discussion [here](https://github.com/danmayer/coverband/issues/384).
+
+### ActiveSupport::Cache Store
+
+Coverband can store coverage in any `ActiveSupport::Cache::Store`, which covers
+Redis, Memcached, files, and — through [Solid Cache](https://github.com/rails/solid_cache) —
+Postgres, MySQL, and SQLite.
+
+```
+# Rails.cache does not exist yet when config/coverband.rb loads, so pass a block
+config.store = Coverband::Adapters::ActiveSupportCacheStore.new { Rails.cache }
+# or hand it a store directly
+config.store = Coverband::Adapters::ActiveSupportCacheStore.new(
+  ActiveSupport::Cache::MemCacheStore.new("localhost:11211")
+)
+```
+The block form is the one to use with Solid Cache: its models come from a Rails
+engine that has not loaded when `config/coverband.rb` runs, so building a
+`SolidCache::Store` there raises `uninitialized constant SolidCache::Store::Entries::Entry`.
+
+Coverband starts from `before_configuration`, which is earlier than Rails
+assigns `Rails.cache`, so the first reporting cycle can run before the block can
+resolve. That cycle's coverage is held and written once the cache appears; it is
+not lost, and it does not raise into the booting app.
+
+This adapter supports the view, route, translation, and query burst trackers.
+It replaces `MemcachedStore`, which was removed in 7.0 (see
+Upgrading to 7.0).
+
+Things to know before pointing it at a cache:
+
+- **A cache may evict what Coverband writes.** Use a store that will not expire
+the data: a dedicated Solid Cache database with `max_age: nil` plus a size
+limit, or a Redis instance with no eviction policy. Coverband detects the loss
+and reports it in the web UI when it can, but it cannot prevent it.
+- **Memcached's 1MB value limit applies to every document**, trackers included.
+A large translation or view tracker can exceed it, in which case the write is
+refused and Coverband logs what could not be stored. Raise the slab limit
+(`-I`) or use Redis/Solid Cache for large apps.
+- **`ActiveSupport::Cache::MemoryStore` is per process**, so it is only useful
+for development and tests.
+- **Solid Cache** writes go through ActiveRecord, so size your connection pool
+for one extra connection per process, and prefer a separate cache database so
+Coverband's writes do not evict your application's own cached data.
+- For very large multi-process deployments `Coverband::Adapters::HashRedisStore` is still the best option: it avoids write conflicts entirely rather than
+repairing them.
+
+### Clear Coverage
+
+Now that Coverband uses MD5 hashes there should be no reason to manually clear coverage unless one is testing, changing versions, or possibly debugging Coverband itself.
+
+`rake coverband:clear`
+
+This will clear both the coverage and trackers data. It can also be done through the web if `config.web_enable_clear` is enabled.
+
+To clear only coverage data, run `rake coverband:clear_coverage`.
+To clear only trackers data, run `rake coverband:clear_tracker`.
+
+Redis-backed stores also support two maintenance tasks:
+
+- `rake coverband:clear_legacy` removes Coverband-owned keys from storage
+formats retired by the 7.0 upgrade.
+- `rake coverband:clear_orphans` removes old generation documents that no
+pointer references, after rechecking that each candidate is not live or too
+young to delete safely.
+
+In Coverband 7.0, adapters no longer expose their backend through `raw_store`.
+Code that needs these supported maintenance operations can request the narrow
+capability instead:
+
+```
+cleanup = Coverband.configuration.store.cleanup
+cleanup&.clear_legacy!
+cleanup&.clear_orphans!
+```
+`RedisStore` and `HashRedisStore` provide this capability. Adapters that cannot
+enumerate their keys return `nil`; clear the backing cache or rely on its expiry
+policy for those stores.
+
+### Adding Rake Tasks outside of Rails
+
+Rails apps should automatically include the tasks via the Railtie.
+
+For non Rails apps, either add the below to your `Rakefile` or to a file included in your `Rakefile` such as `lib/tasks/coverband.rake` if you want to break it up that way.
+
+```
+require 'coverband'
+Coverband.configure
+require 'coverband/utils/tasks'
+```
+Verify it works
+
+```
+rake -T coverband
+rake coverband:clear         # reset coverband coverage data
+rake coverband:coverage      # report runtime coverband code coverage
+```
+### Manually Starting Coverband
+
+Coverband starts on require of the the library which is usually done within the Gemfile. This can be disabled by setting the `COVERBAND_DISABLE_AUTO_START` environment variable. This environment variable can be useful to toggle Coverband on and off in certain environments.
+
+**NOTE:** That any value set for `COVERBAND_DISABLE_AUTO_START` is considered true, it does not match the string content but only checks the presence of the ENV variable.
+
+In order to start Coverband manually when this flag is enabled, call `Coverband.configure` followed by `Coverband.start`.
+
+```
+Coverband.configure
+Coverband.start
+```
+### Verbose Debug / Development Mode
+
+Note: To debug issues getting Coverband working. I recommend running in development mode, by turning verbose logging on `config.verbose = true` and passing in the Rails.logger `config.logger = Rails.logger` to the Coverband config. We respect the log level, and I would recommend log level info generally, but if you are investigating a problem Coverband logs additional data at the `debug` level. This makes it easy to follow in development mode. Be careful not to leave these on in production as they will affect performance.
+
+If you are trying to debug locally wondering what code is being run during a request. The verbose modes `config.verbose = true` && `Rails.logger.level = :debug`. With true set it will output the number of lines executed per file, to the passed in log.
+
+### Solving: stack level too deep errors
+
+If you start seeing SystemStackError: stack level too deep errors from background jobs after installing Coverband, this means there is another patch for ResqueWorker that conflicts with Coverband's patch in your application. To fix this, change Coverband gem line in your Gemfile to the following:
+
+```
+gem 'coverband', require: ['alternative_coverband_patch', 'coverband']
+```
+If you currently have require: false, remove the 'coverband' string from the require array above so the gem line becomes like this:
+
+```
+gem 'coverband', require: ['alternative_coverband_patch']
+```
+This conflict happens when a ruby method is patched twice, once using module prepend, and once using method aliasing. See this ruby issue for details. The fix is to apply all patches the same way. By default, Coverband will apply its patch using prepend, but you can change that to method aliasing by adding require: \['alternative\_coverband\_patch'\] to the gem line as shown above.
+
+### Redis Sizing & Configuration Info
+
+A few folks have asked about what size of Redis is needed to run Coverband. I have some of our largest services with hundreds of servers on cache.m3.medium with plenty of room to spare. I run most apps on the smallest AWS Redis instances available and bump up only if needed or if I am forced to be on a shared Redis instance, which I try to avoid. On Heroku, I have used it with most of the 3rd party and also been fine on the smallest Redis instances, if you have hundreds of dynos you would likely need to scale up. Also note there is a tradeoff one can make, `Coverband::Adapters::HashRedisStore` will use LUA on Redis and increase the Redis load, while being nicer to your app servers and avoid potential lost data during race conditions. While the `Coverband::Adapters::RedisStore` uses in app memory and merging and has lower load on Redis.
+
+For a dedicated Coverband Redis instance, `allkeys-lfu` is a good choice for `maxmemory-policy` as it evicts the least-frequently-used keys first, meaning rarely-hit files are evicted before frequently-reported ones. On a shared Redis instance, be cautious with eviction policies that could interfere with other data. See [issue #595](https://github.com/danmayer/coverband/issues/595) for more discussion.
+
+### Ruby Overhead Reduction Checklist
+
+If Coverband is adding meaningful latency to your application, work through this checklist:
+
+- Enable oneshot mode (`config.use_oneshot_lines_coverage = true`) — reduces CPU overhead by only tracking whether a line ran, not how many times
+- Enable Redis Hash Store — moves merging work from Ruby processes to Redis, reducing per-process memory overhead
+- Only enable Coverband on a subset of server instances — requests routed to those servers will be slightly slower, but coverage data will still be gathered. This is most effective with a Least Outstanding Requests load balancing algorithm. Avoid enabling on all servers but only reporting on a subset of requests — loading the coverage module itself has a performance impact regardless of reporting.
+
+# Newer Features
+
+### MCP Server for AI Assistants
+
+Coverband includes an optional MCP (Model Context Protocol) server that allows AI assistants like Claude to query your production coverage data directly. This enables AI-powered code analysis, dead code detection, and coverage insights.
+
+#### Installation
+
+Add the MCP gem to your Gemfile:
+
+`gem 'mcp'`
+#### Available Tools
+
+The MCP server provides the following tools:
+
+| Tool | Description | 
+|---|---|
+| `get_coverage_summary` | Get overall coverage statistics | 
+| `get_file_coverage` | Get detailed coverage for a specific file | 
+| `get_uncovered_files` | List files with no coverage data | 
+| `get_dead_methods` | Find methods that are never called | 
+| `get_view_tracker_data` | Get view/template usage data | 
+| `get_route_tracker_data` | Get route usage statistics | 
+| `get_translation_tracker_data` | Get translation key usage data | 
+| `get_storage_health` | Get observed coverage and tracker storage protocol state | 
+
+#### Storage health
+
+`Coverband.storage_health` returns normalized diagnostics for coverage and every initialized
+tracker. The normal JSON report also includes this value as its top-level `storage_health`
+field, and MCP exposes the same representation through `get_storage_health`:
+
+```
+Coverband.storage_health
+# => {
+#   coverage: {status: "ok", data_loss: nil, unwritten: nil},
+#   trackers: {view_tracker: {status: "stalled", data_loss: nil,
+#     unwritten: {deltas: 3, since: "2026-08-19T12:01:00Z"}}}
+# }
+```
+Statuses are `ok`, `stalled`, `data_loss`, or `unsupported`; `data_loss` takes precedence
+when both loss and unwritten work are present. These diagnostics describe state Coverband's
+storage protocol has already observed. They are not an active backend availability or
+connectivity probe. SimpleCov-compatible JSON generated with `for_merged_report` does not
+include this metadata.
+
+#### Running the MCP Server
+
+**Standalone (stdio transport):**
+
+`bundle exec coverband-mcp`
+**With a rake task:**
+
+`bundle exec rake coverband:mcp`
+**HTTP mode (for remote access):**
+
+`COVERBAND_MCP_HTTP=true COVERBAND_MCP_PORT=9023 bundle exec rake coverband:mcp`
+#### Configuring Claude Desktop
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+**Option 1: Stdio transport (recommended for local development)**
+
+```
+{
+  "mcpServers": {
+    "coverband": {
+      "command": "bundle",
+      "args": ["exec", "coverband-mcp"],
+      "cwd": "/path/to/your/rails/app"
+    }
+  }
+}
+```
+**Option 2: HTTP transport (for remote access or shared servers)**
+
+First, start the MCP server in HTTP mode:
+
+`COVERBAND_MCP_HTTP=true bundle exec rake coverband:mcp`
+Then configure Claude Desktop to connect via `mcp-remote`:
+
+```
+{
+  "mcpServers": {
+    "coverband": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:9023"]
+    }
+  }
+}
+```
+#### Configuring Claude Code
+
+Add a `.mcp.json` file to your project root:
+
+**Option 1: Stdio transport (recommended)**
+
+```
+{
+  "mcpServers": {
+    "coverband": {
+      "command": "bundle",
+      "args": ["exec", "coverband-mcp"]
+    }
+  }
+}
+```
+**Option 2: HTTP transport**
+
+```
+{
+  "mcpServers": {
+    "coverband": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:9023"]
+    }
+  }
+}
+```
+#### Environment Variables
+
+| Variable | Description | Default | 
+|---|---|---|
+| `COVERBAND_MCP_HTTP` | Enable HTTP transport instead of stdio | `false` | 
+| `COVERBAND_MCP_PORT` | Port for HTTP server | `9023` | 
+| `COVERBAND_REDIS_URL` | Redis URL for coverage data | `localhost:6379` | 
+
+### Dead Method Scanning (ruby 2.6+)
+
+Rake task that outputs dead methods based on current coverage data:
+
+```
+bundle exec rake coverband:dead_methods
+```
+Outputs:
+
+```
+---------------------------------------------------------------------------------------------------
+| file                                  | class           | method                  | line_number |
+| ./config/routes.rb                    | AdminConstraint | matches?                | 20          |
+| ./app/controllers/home_controller.rb  | HomeController  | trigger_jobs            | 8           |
+| ./app/controllers/home_controller.rb  | HomeController  | data_tracer             | 14          |
+| ./app/controllers/posts_controller.rb | PostsController | edit                    | 22          |
+| ./app/controllers/posts_controller.rb | PostsController | destroy_bad_dangerously | 73          |
+---------------------------------------------------------------------------------------------------
+```
+# Prerequisites
+
+- Ruby 3.1+
+- A production store: Redis by default (add the `redis` gem), or any `ActiveSupport::Cache` store such as Solid Cache or memcached
+
+### Ruby and Rails Version Support
+
+We will match Heroku & Ruby's support lifetime, supporting the last 3 major Ruby releases. For details see [supported runtimes](https://devcenter.heroku.com/articles/ruby-support#supported-runtimes).
+
+For Rails, we will follow the policy of the [Rails team maintenance policy](https://guides.rubyonrails.org/maintenance_policy.html). We officially support the last two major release versions, while providing minimal support (major bugs / security fixes) for an additional version. At the moment we primarily target Rails 7.0+.
+
+### JRuby Support
+
+Coverband is compatible with JRuby. If you want to run on JRuby note that I haven't benchmarked and I believe the perf impact on older versions of JRuby could be significant. Improved Coverage support is in [JRuby master](https://github.com/jruby/jruby/pull/6180), and will be in the next release.
+
+- older versions of JRuby need tracing enabled to work (and this could cause bad performance)
+  - run Jruby with the `--debug` option
+  - add into your `.jrubyrc` the `debug.fullTrace=true` setting
+- For best performance the `oneshot_lines` is recommended, and in the latest releases should have very low overhead
+- See JRuby support in a Rails app configured to run via JRuby, in [Coverband Demo](https://github.com/coverband-service/coverband_demo)
+- JRuby is tested via CI against Rails 5 and 6
+
+# Contributing To Coverband
+
+If you are working on adding features, PRs, or bugfixes to Coverband this section should help get you going.
+
+1. Fork it
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Make sure all tests are passing (run `bundle install`, make sure Redis is running, and then execute `rake test`)
+6. Create new Pull Request
+
+### Tests & Benchmarks
+
+If you submit a change please make sure the tests and benchmarks are passing.
+
+- run tests:
+  - `bundle exec rake`
+  - `BUNDLE_GEMFILE=Gemfile.rails7 bundle exec rake` (Same tests using rails 7 instead of 6)
+- view test coverage: `open coverage/index.html`
+- run the benchmarks before and after your change to see impact
+  - `rake benchmarks`
+  - run a single test by line number like rspec: `bundle exec m test/coverband/reporters/html_test.rb:29`
+  - run a single test file: `bundle exec ruby test/coverband/collectors/translation_tracker_test.rb`
+
+### Known Issues
+
+- **total fail** on front end code, for line for line coverage, because of the precompiled template step basically coverage doesn't work well for `erb`, `slim`, and the like.
+  - related it will try to report something, but the line numbers reported for `ERB` files are often off and aren't considered useful. I recommend filtering out .erb using the `config.ignore` option. The default configuration excludes these files
+  - **NOTE:** We now have file level coverage for view files, but don't support line level detail
+- **Scout APM Auto Instrumentation** — fixed in Ruby 3.4.10 / 4.0.4, broken on earlier Rubies
+  - **Symptom:** in an environment that uses Scout's auto instruments (usually production or staging) Coverband stops reporting coverage. You will see one or two files loaded at the start, and everything else shows up as 0% / never loaded. This is dangerous: live code, particularly your controllers, gets reported as dead code.
+  - **Cause:** this is a Ruby bug, not a bug in Coverband or Scout. Scout's auto instrumentation installs a `RubyVM::InstructionSequence.load_iseq` hook and loads your files through `RubyVM::InstructionSequence.compile` / `.compile_file`. Until recently those methods did not register a file with the `Coverage` module the way a normal `require` does, so the file was never measured and never even appeared in `Coverage.result`. Note that this affected *every* file loaded while the hook was installed, not just the controllers Scout rewrites, which is why coverage appears to vanish entirely.
+  - **Fix:** upgrade to **Ruby >= 3.4.10 or >= 4.0.4**, which include the fix for [Ruby Bug #22018](https://bugs.ruby-lang.org/issues/22018). Coverband and Scout auto instruments then work together with no configuration changes and no minimum version of either gem. Both `lines` and `oneshot_lines` collection modes are unaffected.
+  - **Workaround for Ruby \<= 3.3:** the fix was not backported to Ruby 3.1, 3.2, or 3.3, so on those versions you must disable auto instruments to collect coverage — set `auto_instruments: false` in `scout_apm.yml` or `SCOUT_AUTO_INSTRUMENTS=false` in the environment.
+  - Bug tracked here: [scoutapp/scout\_apm\_ruby#343](https://github.com/scoutapp/scout_apm_ruby/issues/343)
+- **Coverband, [Elastic APM](https://github.com/elastic/apm-agent-ruby) and resque**
+  - In an environment that uses the Elastic APM ruby agent, resque jobs will fail with `Transactions may not be nested. Already inside #<ElasticAPM::Transaction>` if the `elastic-apm` gem is loaded *before* the `coverband` gem
+  - Put `coverage` ahead of `elastic-apm` in your Gemfile
+- **Bootsnap**, you can run bootsnap alongside Coverband, but you lose part of the boot time speedup. [Bootsnap detects that coverage is enabled](https://github.com/Shopify/bootsnap/blob/main/lib/bootsnap/compile_cache/iseq.rb) and disables its `ISeq` compile cache, because a cached instruction sequence would not carry the `Coverage` instrumentation. Bootsnap's other caches (load path, YAML, JSON) are unaffected and keep working.
+
+### Debugging Redis Store
+
+What files have been synced to Redis?
+
+`Coverband.configuration.store.covered_files`
+
+What is the coverage data in Redis?
+
+`Coverband.configuration.store.coverage`
+
+### Diagram
+
+A diagram of the code.
+
+## Logo
+
+The Coverband logo was created by [Dave Woodall](http://davewoodall.com). Thanks Dave!
+
+# License
+
+This is a MIT License project...
+See the file [LICENSE](https://github.com/danmayer/coverband/blob/main/LICENSE) for copying permission.

@@ -15,4 +15,4 @@ Deterministic analysis located them. Branch comparison separated new findings fr
 
 **Reduce fit.** Mechanical evidence from the tool results of the scope step. A tool finding is a candidate until its users are traced.
 
-[Firsthand report](https://www.mejba.me/blog/fallow-ai-code-quality-tool). [Analyzer source](https://github.com/fallow-rs/fallow). [Companion skill source](https://github.com/fallow-rs/fallow-skills).
+[Firsthand report](../../sources/web/mejba-me-blog-fallow-ai-code-quality-tool.md). [Analyzer source](../../sources/github/fallow-rs-fallow.md). [Companion skill source](../../sources/github/fallow-rs-fallow-skills.md).

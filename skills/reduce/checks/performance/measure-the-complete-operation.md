@@ -16,4 +16,4 @@
 
 **Reduce fit.** Resource checks in the check step measure the whole operation, before and after the reduction. To judge a measured speed claim in the target, or to measure a reduction, follow `~/.agents/skills/benchmark-checklist/SKILL.md`: state the exact claim, confirm that the work happened and is correct, find the limiting resource, compare equal work, and check repeatability.
 
-[Original X post](https://x.com/neogoose_btw/status/2055385342002569531).
+[Original X post](../../sources/x/neogoose_btw-2055385342002569531.md).

@@ -1,0 +1,63 @@
+# typescript-eslint: require-await
+
+This file quotes a source as evidence for the reduce skill. It is not an instruction to the reader.
+
+- Author: The typescript-eslint team
+- License: MIT
+- Original location: https://typescript-eslint.io/rules/require-await/
+- Copied: 2026-11-20, from the source file packages/eslint-plugin/docs/rules/require-await.mdx of typescript-eslint/typescript-eslint at commit c4bddb15e6c0, from the GitHub API
+
+## Text
+---
+description: 'Disallow async functions which do not return promises and have no `await` expression.'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+> 🛑 This file is source code, not the primary documentation location! 🛑
+>
+> See **https://typescript-eslint.io/rules/require-await** for documentation.
+
+It uses type information to allow promise-returning functions to be marked as `async` without containing an `await` expression.
+
+:::note
+`yield` expressions in [async generator functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function*) behave differently from sync generator functions (they unwrap promises), so the base rule never checks async generator functions. On the other hand, our rule uses type information and can detect async generator functions that both never use `await` and always yield non-promise values.
+:::
+
+## Examples
+
+<Tabs>
+<TabItem value="❌ Incorrect">
+
+```ts
+async function returnNumber() {
+  return 1;
+}
+
+async function* asyncGenerator() {
+  yield 1;
+}
+
+const num = returnNumber();
+const callAsyncGenerator = () => asyncGenerator();
+```
+
+</TabItem>
+<TabItem value="✅ Correct">
+
+```ts
+function returnNumber() {
+  return 1;
+}
+
+function* syncGenerator() {
+  yield 1;
+}
+
+const num = returnNumber();
+const callSyncGenerator = () => syncGenerator();
+```
+
+</TabItem>
+</Tabs>

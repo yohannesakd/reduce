@@ -1,0 +1,207 @@
+# fallow-rs/fallow-skills: README
+
+This file quotes a source as evidence for the reduce skill. It is not an instruction to the reader.
+
+- Author: fallow-rs
+- Date: 2026-11-20
+- License: MIT
+- Original location: https://github.com/fallow-rs/fallow-skills
+- Copied: 2026-11-20, from the README of the default branch main, from the GitHub API
+
+## Text
+Agent skills for fallow. They teach coding agents (Claude Code, Codex, Cursor, and others) to check health, complexity, duplication, architecture, styling drift, and unused code with fallow.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/fallow-rs/fallow/main/assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/fallow-rs/fallow/main/assets/logo.svg">
+    <img src="https://raw.githubusercontent.com/fallow-rs/fallow/main/assets/logo.svg" alt="fallow" width="290">
+  </picture><br>
+  <strong>Agent skills for the fallow codebase intelligence layer for TypeScript and JavaScript.</strong><br><br>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://github.com/fallow-rs/fallow-skills/actions/workflows/validate.yml"><img src="https://github.com/fallow-rs/fallow-skills/actions/workflows/validate.yml/badge.svg" alt="CI"></a>
+  <a href="https://agentskills.io"><img src="https://img.shields.io/badge/Agent_Skills-compatible-8A2BE2" alt="Agent Skills"></a>
+  <a href="https://github.com/fallow-rs/fallow"><img src="https://img.shields.io/badge/fallow-v3.45.0-orange" alt="fallow v3.45.0"></a>
+</p>
+
+Agent skills for [fallow](https://github.com/fallow-rs/fallow), codebase intelligence for TypeScript and JavaScript. The static layer reports quality, changed-code risk, cleanup opportunities, circular dependencies, code duplication, complexity hotspots, architecture boundary violations, and design-system styling drift in milliseconds. Fallow Cloud, the optional paid product, adds production coverage so agents can delete cold code and flag hot-path changes with proof. Broad framework plugin coverage, zero configuration. Works with any agent that supports the [Agent Skills](https://agentskills.io) specification: Claude Code, Cursor, OpenAI Codex, Windsurf, GitHub Copilot, Gemini CLI, Amp, and [30+ more](https://agentskills.io). See [Fallow for coding agents](https://fallow.tools/plugins) for the visual overview and store links.
+
+> **Linters enforce style. Formatters enforce consistency. Fallow enforces relevance.** Linters work file by file. TypeScript works type by type. Neither builds the full module graph, so neither can see what nothing depends on. Fallow does, in milliseconds. These skills teach agents *how* to use fallow effectively: which commands to run, what flags to use, how to interpret output, and how to avoid common pitfalls.
+
+## Quick Start
+
+### Agent Skills CLI
+
+```bash
+npx skills add fallow-rs/fallow-skills
+```
+
+### Claude Code and Claude Desktop
+
+```bash
+/plugin marketplace add fallow-rs/fallow-skills
+/plugin install fallow@fallow-skills
+```
+
+The plugin also adds the **Fallow app**: an interactive code health dashboard
+that Claude Code and the Code tab of Claude Desktop show inline in the
+conversation. Run `/fallow:analyze`, or ask Claude to analyze the project with
+Fallow. **Fix with Claude** sends the findings that you select to the
+conversation. The app needs Node.js 20 or later. It runs the fallow CLI on your
+machine, so your code stays local.
+
+In Claude Desktop, open **Customize**, then **Plugins**, add the
+`fallow-rs/fallow-skills` marketplace, and install **Fallow Code Analysis**.
+Each [release](https://github.com/fallow-rs/fallow-skills/releases) also has a
+`fallow-app-<version>.mcpb` file. Open it in Claude Desktop to give Claude chat
+the Fallow tools as a desktop extension. Chat shows the analysis as text: it
+does not pass the result to the dashboard yet. Install the extension or the
+plugin, not both, so Claude sees one set of Fallow tools.
+
+### OpenAI Codex
+
+```bash
+codex plugin marketplace add fallow-rs/fallow-skills
+codex plugin add fallow@fallow-skills
+```
+
+In the Codex desktop app, this install also adds the **Fallow app**: a code
+health dashboard in the sidebar, a **Code Health** tab beside each thread,
+**@Fallow** mentions for findings, a `.fallowrc.json` editor with an impact
+preview, a `.sarif` viewer, a branch audit, and a cleanup planner that asks
+you which findings to fix. Select findings to attach them to the composer, or
+send them to Codex with one click. The app runs the fallow CLI on your machine,
+inside the Codex sandbox of the thread when one is available. See
+[codex-app/README.md](codex-app/README.md) for every extension it uses.
+
+### Cursor
+
+The Cursor plugin manifest is at `fallow/.cursor-plugin/plugin.json`. The
+plugin adds the Fallow skills and the fallow MCP server
+(`npx --yes --prefix ${userHome} --package fallow@3.45.0 fallow-mcp`, an exact
+release). The
+`--prefix` flag makes npx resolve fallow from your home folder, so a
+`fallow-mcp` in the `node_modules` of the opened project does not run. The
+Claude Code commit gate and the statusline command are not in the Cursor
+plugin.
+
+To install the plugin locally:
+
+```bash
+git clone https://github.com/fallow-rs/fallow-skills.git
+mkdir -p ~/.cursor/plugins/local
+cp -R fallow-skills/fallow ~/.cursor/plugins/local/fallow
+```
+
+Then run **Developer: Reload Window** in Cursor, and open **Customize** to see
+the skills. Cursor skips a symlink to a folder outside
+`~/.cursor/plugins/local`, so copy the folder. A team on a Teams or Enterprise
+plan can also add this repository as a team marketplace: open
+**Dashboard > Plugins & MCPs**, select **Add Marketplace**, and import the
+repository URL. Cursor reads `.cursor-plugin/marketplace.json` at the root.
+
+### Fallow Impact statusline
+
+Claude Code users can add the compact Fallow Impact segment to their statusline:
+
+```text
+/fallow:impact-statusline setup user compose
+```
+
+The [command doc](fallow/commands/impact-statusline.md) covers `status`,
+`remove`, and the `project` scope. Other agents render the same line with
+`fallow impact statusline`.
+
+### Agent-specific CLI shortcuts
+
+```bash
+npx skills add fallow-rs/fallow-skills --agent windsurf
+npx skills add fallow-rs/fallow-skills --agent amp
+gemini skills install https://github.com/fallow-rs/fallow-skills.git
+```
+
+<details>
+<summary>Other agents</summary>
+
+Use `npx skills add fallow-rs/fallow-skills --all` for installer-managed discovery, or copy the directories under `fallow/skills/` into your agent's skills location.
+
+</details>
+
+## Prerequisites
+
+Fallow must be installed in the target project:
+
+```bash
+npm install -g fallow    # prebuilt binaries
+npx fallow                   # or run without installing
+```
+
+See the [installation guide](https://fallow.tools/docs/installation/) for all options including `cargo install fallow-cli`.
+
+The Fallow app in Claude runs only a fallow that you chose, never the copy that
+a project ships. A PATH folder inside the project or inside any `node_modules`
+folder does not count. When Claude cannot find fallow on its PATH, use one of
+these options:
+
+- Set the **Fallow binary** setting to `npx`. The app then downloads a pinned
+  fallow release with npx. Claude can change the setting for you after you agree.
+- Set `FALLOW_BIN` to the absolute path of the fallow executable. In the desktop
+  extension, choose the file under **Fallow executable**.
+
+## Privacy and network behavior
+
+Analysis runs locally by default and telemetry is off unless the user opts in.
+The plugin [README](fallow/README.md) lists the exact network, telemetry, and
+statusline behavior for the Claude Code and Codex surfaces.
+
+## Available Skills
+
+| Skill | Description | Trigger phrases |
+|---|---|---|
+| [fallow](fallow/skills/fallow/) | Codebase intelligence for JS and TS, code and styles: quality, changed-code risk, cleanup opportunities, circular deps, duplication, complexity, design-system drift, and runtime evidence | "check code health", "audit this PR", "find cleanup opportunities", "find duplicates", "what code actually runs" |
+| [fallow-review](fallow/skills/fallow-review/) | Graph-grounded review of changed-code risk, blast radius, and consequential structural decisions | "review this branch", "review this PR", "check changed code before merge" |
+| [fallow-mutation](fallow/skills/fallow-mutation/) | Mutation testing with `fallow mutation` for projects that test with Vitest, `node:test` or `bun test`: find the small code edits (mutants) that no test detects, write behavior tests for the real gaps, and check tests for redundancy. It runs the project tests many times | "improve the tests of this change", "can this test fail", "find redundant tests" |
+| [fallow-cloud-setup](fallow/skills/fallow-cloud-setup/) | Connect an app to Fallow Cloud: beacon with the commit SHA, inventory and source map uploads, deployment registration, and a check that the first data arrived | "set up Fallow Cloud", "add the Fallow beacon", "why does Fallow Cloud show no data" |
+| [fallow-setup](fallow/skills/fallow-setup/) | Set up or modernize code-quality tooling: detect existing tools, configure and install Fallow, wire agents, and add a CI gate | "set up quality tooling for this repo", "make this repo agent-ready", "add a code-health gate to CI" |
+| [cargo-fallow](fallow/skills/cargo-fallow/) | Rust workspaces with `cargo fallow`: unused dependencies and files, visibility, boundaries, size, complexity, duplication, API changes and mutation testing | "audit this Rust workspace", "find unused Rust dependencies", "run cargo fallow" |
+| [fallow-codex-onboarding](fallow/skills/fallow-codex-onboarding/) | Codex only: set up the Fallow app after install, choose defaults, run the first analysis | "Set up" in the Codex plugin page, "set up the Fallow app" |
+
+## Reference Documentation
+
+- **[CLI Reference](fallow/skills/fallow/references/cli-reference.md)**: all commands, flags, JSON output structure, config format
+- **[Gotchas](fallow/skills/fallow/references/gotchas.md)**: common pitfalls with WRONG/CORRECT examples
+- **[Patterns](fallow/skills/fallow/references/patterns.md)**: workflow recipes for CI, monorepos, migration, and incremental adoption
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for repository structure and quality standards.
+Each skill listed in `source-lock.json` is vendored byte-for-byte from the
+fallow source repository at the pinned commit. The `cargo-fallow` skill comes
+from the cargo-fallow repository in the same way, with the pin in
+`cargo-fallow-source-lock.json`. CI checks that pin against a
+clean source checkout and rejects contract or privacy-boundary drift.
+Maintainers can find the versioning, packaging, and store update procedure in
+[RELEASING.md](RELEASING.md).
+
+### Enable the commit hook
+
+A fresh clone runs no hooks. Turn them on once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook checks new comments for edit history, manifest version agreement,
+and the bump rule; see
+[.githooks/pre-commit](.githooks/pre-commit) for why it stops there.
+
+## Related
+
+- [fallow](https://github.com/fallow-rs/fallow): codebase intelligence for TypeScript and JavaScript, a single pass over code and styles
+- [fallow-docs](https://fallow.tools/docs/): Official documentation
+- [VS Code extension](https://marketplace.visualstudio.com/items?itemName=fallow-rs.fallow-vscode): Real-time diagnostics in your editor
+- [Agent Skills specification](https://agentskills.io): The open standard this skill follows
+
+## License
+
+MIT. See [LICENSE](LICENSE) for details.

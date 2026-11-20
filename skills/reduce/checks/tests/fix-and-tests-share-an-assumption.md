@@ -8,4 +8,4 @@ Mark an inventory entry that only generated tests prove as `confirmed by run`, w
 
 **Keeps it when.** A person traced the test to a required entry. For a fix, the test also fails on the base revision and passes on the reduced code.
 
-**Sources.** [@mjovanovictech](https://x.com/mjovanovictech/status/2115746465511362615), [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code).
+**Sources.** [Milan Jovanović](../../sources/x/mjovanovictech-2115746465511362615.md), [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md).

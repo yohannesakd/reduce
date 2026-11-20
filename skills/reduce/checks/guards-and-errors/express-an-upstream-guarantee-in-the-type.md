@@ -34,4 +34,4 @@ Keep runtime validation where untrusted or unfinished values can enter.
 
 **Reduce fit.** `prevent` with a type. The removed throw is unreachable only when the guarantee holds across all entry points.
 
-[PR and verification](https://github.com/openclaw/openclaw/pull/161659). [Pinned mapper change](https://github.com/openclaw/openclaw/compare/0a0a2e0489026b2e73d139383e7b60515fcaf7f3...7745effd839d26863d8480c1888715841523c808).
+[PR and verification](../../sources/github/openclaw-openclaw-pull-161659.md). [Pinned mapper change](../../sources/github/openclaw-openclaw-compare-0a0a2e0489026b2e73d139383e7b60.md).

@@ -15,4 +15,4 @@ Show that no consumer observes those values, such as a first-render flash, a tes
 
 **Keeps it when.** The copy has a second writer, it must outlive the owner, or a consumer observes the first-render or lagging value.
 
-**Sources.** [Debloating post](https://dev.to/maximsaplin/debloating-the-ai-grown-codebase-2om).
+**Sources.** [Debloating post](../../sources/web/dev-to-maximsaplin-debloating-the-ai-grown-codebase-2om.md).

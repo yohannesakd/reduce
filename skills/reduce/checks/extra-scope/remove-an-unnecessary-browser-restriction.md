@@ -20,4 +20,4 @@ Willison identifies that line as the cause of failure with an external image URL
 
 **Reduce fit.** Removing the line changes behavior for external images. The reduce skill reports it as a suspected defect and does not plan it.
 
-[Author's comparison and diagnosis](https://news.ycombinator.com/item?id=49325621). [Glimmer transcript](https://gist.github.com/simonw/51e8ddb2ee597a5005fa63bd4927dbf0). [Generated HTML, assignment at line 64 when inspected](https://static.simonwillison.net/static/2026/glimmer-bbox.html).
+[Author's comparison and diagnosis](../../sources/forums/hn-49325621.md). [Glimmer transcript](../../sources/github/gist-51e8ddb2ee597a5005fa63bd4927dbf0.md). [Generated HTML, assignment at line 64 when inspected](../../sources/web/static-simonwillison-net-static-2026-glimmer-bbox-html.md).

@@ -17,4 +17,4 @@ A flag whose value never changes in production has one value. Remove it. Keep a 
 
 **Keeps it when.** An accepted source names the consumer of the old endpoint, or the migration touches persisted data that cannot be rebuilt.
 
-**Sources.** [Google review guidance](https://www.freecodecamp.org/news/what-google-taught-me-about-code-reviews/).
+**Sources.** [Google review guidance](../../sources/web/freecodecamp-org-news-what-google-taught-me-about-code-reviews.md).

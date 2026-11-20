@@ -17,4 +17,4 @@ Prove that the suppressed problem no longer occurs before you plan the removal. 
 
 **Keeps it when.** The directive states why it is necessary, and the trace agrees.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code), [Sentry deslop](https://www.aitmpl.com/component/skill/deslop), [HN: defensive code](https://news.ycombinator.com/item?id=45530486).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md), [Sentry deslop](../../sources/web/aitmpl-com-component-skill-deslop.md), [HN: defensive code](../../sources/forums/hn-45530486.md).

@@ -35,4 +35,4 @@ if (!result.ok) {
 
 **Reduce fit.** `simplify`. One caller is a reason to inspect a helper, not proof that it is unnecessary.
 
-[Pinned desktop carrier diff](https://github.com/openclaw/openclaw/commit/b231790955).
+[Pinned desktop carrier diff](../../sources/github/openclaw-openclaw-commit-b231790955.md).

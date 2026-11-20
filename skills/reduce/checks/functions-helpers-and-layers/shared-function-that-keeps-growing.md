@@ -12,4 +12,4 @@ Then look for what the callers still share. The shared part is often small and h
 
 **Keeps it when.** The callers use the same behavior, no flag differs between them, and one reason changes all of them. The abstraction then has a single reason to change.
 
-**Sources.** [Sandi Metz summaries](https://understandlegacycode.com/blog/refactoring-rule-of-three/), [@nwiizo](https://x.com/nwiizo/status/2115387095548354712), [Fowler on YAGNI](https://www.martinfowler.com/bliki/Yagni.html).
+**Sources.** [Sandi Metz summaries](../../sources/web/understandlegacycode-com-blog-refactoring-rule-of-three.md), [nwiizo](../../sources/x/nwiizo-2115387095548354712.md), [Fowler on YAGNI](../../sources/web/martinfowler-com-bliki-yagni-html.md).

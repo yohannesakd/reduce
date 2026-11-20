@@ -22,4 +22,4 @@ def run_query(sql, timeout=30): ...
 
 **Keeps it when.** The name documents a value that the code does not explain, such as a limit from an API contract. A test patches it. Another place must change when the value changes, and the constant keeps those places equal.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md).

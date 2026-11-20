@@ -23,4 +23,4 @@ The result keeps the original name. Do not create a new `_v2` name.
 
 **Keeps it when.** The old path is a public interface with outside consumers. Then its behavior entry is `unknown` and the unit is `unresolved` until the consumer evidence decides.
 
-**Sources.** [isomorphic simplify listing](https://x.com/doodlestein/status/2047808489838329993), [Karpathy](https://x.com/karpathy/status/2015883857489522876), [vendor write-up](https://digitalelliptical.com/blog/ai-generated-code-at-scale-preventing-maintenance-collapse/).
+**Sources.** [isomorphic simplify listing](../../sources/x/doodlestein-2047808489838329993.md), [Karpathy](../../sources/x/karpathy-2015883857489522876.md), [vendor write-up](../../sources/web/digitalelliptical-com-blog-ai-generated-code-at-scale-preventing-maintenance-collapse.md).

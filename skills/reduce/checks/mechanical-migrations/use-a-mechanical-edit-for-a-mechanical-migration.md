@@ -23,4 +23,4 @@ Use a parser-based codemod when source shapes exceed the rule's assumptions. Ins
 
 **Reduce fit.** In a plan phase that repeats one syntax change, name the mechanical transformation and its check.
 
-[Original X post with the command and screenshot](https://x.com/neogoose_btw/status/1942231407994208638).
+[Original X post with the command and screenshot](../../sources/x/neogoose_btw-1942231407994208638.md).

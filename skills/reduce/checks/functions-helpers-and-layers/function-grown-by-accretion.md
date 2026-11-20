@@ -21,4 +21,4 @@ Where each branch is a distinct reason to change, a table or one function per ca
 
 **Evidence.** In one benchmark of repeated extension tasks, complexity concentrated in functions that were already complex in 77 percent of runs. Agent code was 2.3 times more verbose than open-source code.
 
-**Sources.** [SlopCodeBench](https://arxiv.org/abs/2603.24755), [sloppylint](https://github.com/rsionnach/sloppylint).
+**Sources.** [SlopCodeBench](../../sources/papers/arxiv-2603.24755.md), [sloppylint](../../sources/github/rsionnach-sloppylint.md).

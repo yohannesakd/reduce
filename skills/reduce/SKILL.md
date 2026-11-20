@@ -178,4 +178,4 @@ The packets cite that file, so a subagent does not need this one.
 
 Create plans only when requested or required.
 
-Sources: [Desloppify review cycle](https://github.com/peteromallet/desloppify#how-it-works), [make-native design questions](https://github.com/Sloydai/make-native/blob/add-make-native-skill/skills/make-native/SKILL.md).
+Sources: [Desloppify review cycle](sources/github/peteromallet-desloppify.md), [make-native design questions](sources/github/sloydai-make-native-skills-make-native-skill-md.md).

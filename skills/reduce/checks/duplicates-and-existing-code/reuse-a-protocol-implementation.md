@@ -35,4 +35,4 @@ const query = Object.fromEntries(url.split("?")[1].split("&").map(p => p.split("
 
 **Reduce fit.** `reuse`. The new dependency is an item. Prove each protocol entry in the inventory against the library before you plan the change.
 
-[PR](https://github.com/hyscale-lab/ARIES/pull/90). [Protocol replacement commit](https://github.com/hyscale-lab/ARIES/commit/e215f33b1e).
+[PR](../../sources/github/hyscale-lab-aries-pull-90.md). [Protocol replacement commit](../../sources/github/hyscale-lab-aries-commit-e215f33b1e.md).

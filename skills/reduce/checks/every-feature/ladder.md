@@ -16,4 +16,4 @@ Then take each part. Answer the questions of each rung in order, from `remove` d
 
 **Keeps it when.** Each higher rung fails with evidence. Record the rung for each part, or a supported `keep` with its reason.
 
-**Sources.** These questions adapt [Dylan Garcia](https://x.com/_dylanga/status/2117400205314421058) and [Jarred Sumner](https://x.com/jarredsumner/status/2117037940031496252).
+**Sources.** These questions adapt [Dylan Garcia](../../sources/x/_dylanga-2117400205314421058.md) and [Jarred Sumner](../../sources/x/jarredsumner-2117037940031496252.md).

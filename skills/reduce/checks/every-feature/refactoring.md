@@ -86,4 +86,4 @@ Each language check is a list of rules. A rule is not a signal: each line that b
 
 **Keeps it when.** The table's **Keep the code when** column holds, or the precedence gives the layout to a formatter or a written project rule.
 
-**Sources.** [PufferLib `SKILL_ISSUES.md`](https://github.com/PufferAI/PufferLib/blob/5.0/SKILL_ISSUES.md), MIT. [The guide](#the-guide) is copied 1:1, without its C and CUDA sections. The rest of this file is an addition of reduce. See [rule sources](../../guides/rule-sources.md).
+**Sources.** [PufferLib `SKILL_ISSUES.md`](../../sources/github/pufferai-pufferlib-skill-issues-md.md), MIT. [The guide](#the-guide) is copied 1:1, without its C and CUDA sections. The rest of this file is an addition of reduce. See [rule sources](../../guides/rule-sources.md).

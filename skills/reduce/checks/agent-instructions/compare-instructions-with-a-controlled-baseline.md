@@ -17,4 +17,4 @@ The guidance then verifies the candidate in the normal working environment.
 
 **Reduce fit.** Proof in the check step when the target is agent instructions.
 
-[Original X report](https://x.com/Howaboua/status/2091789833794376005). [Pinned calibration procedure](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/a06eae4d141fae421a8d0108a4a560013d6508a8/packages/pi-skill-harness-and-agent-engineering/skills/instruction-calibration/SKILL.md).
+[Original X report](../../sources/x/howaboua-2091789833794376005.md). [Pinned calibration procedure](../../sources/github/igorwarzocha-howaboua-pi-stuff-packages-pi-skill-harness-and-agent-engineering-skills-instr.md).

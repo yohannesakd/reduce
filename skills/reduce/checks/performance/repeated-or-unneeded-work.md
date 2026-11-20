@@ -18,4 +18,4 @@ Compare complete representative operations, including time and internal work.
 **Keeps it when.** A consumer reads the data, the order is required, or no measurement shows that a replacement is better. Keep a necessary cache or data structure without replacement evidence.
 Keep performance-only findings separate. Do not expand into a codebase-wide performance audit.
 
-**Sources.** These questions adapt [Dylan Garcia](https://x.com/_dylanga/status/2117400205314421058) and [Jarred Sumner](https://x.com/jarredsumner/status/2117037940031496252).
+**Sources.** These questions adapt [Dylan Garcia](../../sources/x/_dylanga-2117400205314421058.md) and [Jarred Sumner](../../sources/x/jarredsumner-2117037940031496252.md).

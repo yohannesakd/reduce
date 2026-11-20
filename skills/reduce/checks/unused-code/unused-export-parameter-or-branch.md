@@ -13,4 +13,4 @@ An export from a package entry point is a public interface. Its consumers decide
 
 **Keeps it when.** The export is public, or a loader reaches it by name.
 
-**Sources.** [Knip comparison](https://repowise.dev/blog/comparisons/knip-vs-ts-prune-vs-unimported), [Vulture overview](https://repowise.dev/blog/comparisons/best-dead-code-detection-tools).
+**Sources.** [Knip comparison](../../sources/web/repowise-dev-blog-comparisons-knip-vs-ts-prune-vs-unimported.md), [Vulture overview](../../sources/web/repowise-dev-blog-comparisons-best-dead-code-detection-tools.md).

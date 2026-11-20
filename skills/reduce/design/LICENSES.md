@@ -4,8 +4,8 @@ The files in this folder are adapted copies. Each source keeps its copyright and
 
 | Files | Source |
 |---|---|
-| `design-red-flags.md`, `redesign-from-first-principles.md`, `exhaust-the-design-space.md`, `attack-the-premise.md` | [pstack](https://github.com/cursor/plugins/tree/main/pstack) |
-| `codebase-design.md`, `deepening.md`, `design-it-twice.md` | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| `design-red-flags.md`, `redesign-from-first-principles.md`, `exhaust-the-design-space.md`, `attack-the-premise.md` | [pstack](../sources/github/cursor-plugins.md) |
+| `codebase-design.md`, `deepening.md`, `design-it-twice.md` | [mattpocock/skills](../sources/github/mattpocock-skills.md) |
 
 ## pstack
 

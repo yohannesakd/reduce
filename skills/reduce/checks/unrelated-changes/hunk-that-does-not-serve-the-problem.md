@@ -15,4 +15,4 @@ An agent that edits code it does not understand also deletes guards. Run the his
 
 **Keeps it when.** The hunk traces to an inventory entry, or the history check shows that a removed line was a constraint. Then restore or keep it.
 
-**Sources.** [Karpathy](https://x.com/karpathy/status/2015883857489522876), [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code), [Agentic Refactoring](https://arxiv.org/pdf/2511.04824), [Coding Agents Don't Know When to Act](https://arxiv.org/html/2605.07769v1).
+**Sources.** [Karpathy](../../sources/x/karpathy-2015883857489522876.md), [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md), [Agentic Refactoring](../../sources/papers/arxiv-2511.04824.md), [Coding Agents Don't Know When to Act](../../sources/papers/arxiv-2605.07769.md).

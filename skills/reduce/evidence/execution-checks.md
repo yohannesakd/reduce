@@ -30,7 +30,7 @@ For consequential running-system claims, plan randomized old/new comparison on i
 Compare concepts, branches, layers, dependencies, locality, reader burden, and additions' costs. Moving/reformatting alone proves no improvement.
 Record contradictions in Proof; do not propose contradicted changes again.
 
-Sources: [isomorphic simplify listing](https://x.com/doodlestein/status/2047808489838329993), [Debloating post](https://dev.to/maximsaplin/debloating-the-ai-grown-codebase-2om), [Scientist.NET](https://docsearch.algolia.com/mcp/docs/repo/scientistproject/scientist.net), [Tesbo](https://www.tesbo.io/insights/roadmap/reviewing-ai-written-tests).
+Sources: [isomorphic simplify listing](../sources/x/doodlestein-2047808489838329993.md), [Debloating post](../sources/web/dev-to-maximsaplin-debloating-the-ai-grown-codebase-2om.md), [Scientist.NET](../sources/web/docsearch-algolia-com-mcp-docs-repo-scientistproject-scientist-net.md), [Tesbo](../sources/web/tesbo-io-insights-roadmap-reviewing-ai-written-tests.md).
 
 ### Run checks
 

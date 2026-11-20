@@ -29,4 +29,4 @@ Keep coordination state when independent operations genuinely require it.
 
 **Reduce fit.** A `reuse` group that replaces the recovery units together. Prove ordering claims with the formal verification reference when ordinary checks cannot decide them.
 
-[Human review](https://github.com/Comfy-Org/ComfyUI_frontend/pull/18781#discussion_r4107026627). [Exact simplifying commit](https://github.com/Comfy-Org/ComfyUI_frontend/commit/073237b79c7547f5e1550d9cf4b1b74884bffbfe). [Final behavior limits](https://github.com/Comfy-Org/ComfyUI_frontend/pull/18781).
+[Human review](../../sources/github/comfy-org-comfyui-frontend-pull-18781.md). [Exact simplifying commit](../../sources/github/comfy-org-comfyui-frontend-commit-073237b79c.md). [Final behavior limits](../../sources/github/comfy-org-comfyui-frontend-pull-18781.md).

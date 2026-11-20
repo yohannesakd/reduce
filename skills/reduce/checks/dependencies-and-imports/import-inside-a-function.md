@@ -12,4 +12,4 @@ def parse(text):
 
 **Keeps it when.** A lazy import saves start-up time, loads an optional dependency, or breaks a circular import. State which.
 
-**Sources.** [Sentry deslop](https://www.aitmpl.com/component/skill/deslop).
+**Sources.** [Sentry deslop](../../sources/web/aitmpl-com-component-skill-deslop.md).

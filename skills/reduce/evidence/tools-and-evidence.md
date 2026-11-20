@@ -87,10 +87,10 @@ Do not add a rule for one occurrence.
 
 ### Sources
 
-- Tools and their limits: [Knip, ts-prune, and unimported](https://repowise.dev/blog/comparisons/knip-vs-ts-prune-vs-unimported), [dead-code tool comparison](https://repowise.dev/blog/comparisons/best-dead-code-detection-tools), [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code) (Ruff rules, import-linter).
-- Runtime evidence: [thoughtbot on Ruby dead code](https://thoughtbot.com/blog/how-to-remove-dead-code-ruby), [Coverband](https://www.ruby-toolbox.com/projects/coverband), [Meta's dead-code system](https://engineering.fb.com/2023/10/24/data-infrastructure/automating-dead-code-cleanup/).
-- Consumer evidence: [Apollo schema deprecations](https://www.apollographql.com/docs/graphos/schema-design/guides/deprecations), [SmartBear contract-testing glossary](https://support.smartbear.com/swagger/contract-testing/docs/en/user-guide/troubleshooting/glossary.html).
-- Reuse by agents: [More Code, Less Reuse](https://arxiv.org/abs/2601.21276v1).
-- Flags: [Uber AutoClean](https://x.com/UberEng/status/2112604623454470476), [Piranha](https://eng.uber.com/piranha/).
-- Complexity, duplication, and test strength: the pstack [code-quality checks](https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/references/code-quality.md), adapted from [ub-mode](https://github.com/unclebob/ub-mode/blob/master/SKILL.md), [Crapper](https://github.com/unclebob/crapper), [Dryer](https://github.com/unclebob/dryer), [Mutator](https://github.com/unclebob/mutator).
-- History: [Atomic Object on Chesterton's Fence](https://spin.atomicobject.com/chestertons-fence-code-comments/), [Rach Smith](https://rachsmith.com/dont-remove-a-fence/).
+- Tools and their limits: [Knip, ts-prune, and unimported](../sources/web/repowise-dev-blog-comparisons-knip-vs-ts-prune-vs-unimported.md), [dead-code tool comparison](../sources/web/repowise-dev-blog-comparisons-best-dead-code-detection-tools.md), [Anaconda](../sources/web/anaconda-com-blog-deslopping-ai-code.md) (Ruff rules, import-linter).
+- Runtime evidence: [thoughtbot on Ruby dead code](../sources/web/thoughtbot-com-blog-how-to-remove-dead-code-ruby.md), [Coverband](../sources/web/ruby-toolbox-com-projects-coverband.md), [Meta's dead-code system](../sources/web/engineering-fb-com-2023-10-24-data-infrastructure-automating-dead-code-cleanup.md).
+- Consumer evidence: [Apollo schema deprecations](../sources/web/apollographql-com-docs-graphos-schema-design-guides-deprecations.md), [SmartBear contract-testing glossary](../sources/web/support-smartbear-com-swagger-contract-testing-docs-en-user-guide-troubleshooting-glossary.md).
+- Reuse by agents: [More Code, Less Reuse](../sources/papers/arxiv-2601.21276.md).
+- Flags: [Uber AutoClean](../sources/x/ubereng-2112604623454470476.md), [Piranha](../sources/web/eng-uber-com-piranha.md).
+- Complexity, duplication, and test strength: the pstack [code-quality checks](../sources/github/cursor-plugins-pstack-skills-poteto-mode-references-code-quality-md.md), adapted from [ub-mode](../sources/github/unclebob-ub-mode-skill-md.md), [Crapper](../sources/github/unclebob-crapper.md), [Dryer](../sources/github/unclebob-dryer.md), [Mutator](../sources/github/unclebob-mutator.md).
+- History: [Atomic Object on Chesterton's Fence](../sources/web/spin-atomicobject-com-chestertons-fence-code-comments.md), [Rach Smith](../sources/web/rachsmith-com-dont-remove-a-fence.md).

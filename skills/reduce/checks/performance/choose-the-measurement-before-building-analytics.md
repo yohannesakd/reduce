@@ -15,4 +15,4 @@ He proposes an image tag that requests a transparent pixel, with the server coun
 
 **Reduce fit.** The choice of measurement is a product decision. Use the case only for internal infrastructure that serves one measurement the target already shows.
 
-[Original X report](https://x.com/WalterAIBuilder/status/2110911524663627988). [Linked application](https://webify.tools/).
+[Original X report](../../sources/x/walteraibuilder-2110911524663627988.md). [Linked application](../../sources/web/webify-tools.md).

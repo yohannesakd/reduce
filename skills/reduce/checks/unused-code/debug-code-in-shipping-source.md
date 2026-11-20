@@ -13,4 +13,4 @@ Search CI, scripts, deployment config, and docs for the variable. If nothing set
 
 **Keeps it when.** A production support runbook sets the variable.
 
-**Sources.** [Debloating post](https://dev.to/maximsaplin/debloating-the-ai-grown-codebase-2om), [sloppylint](https://github.com/rsionnach/sloppylint).
+**Sources.** [Debloating post](../../sources/web/dev-to-maximsaplin-debloating-the-ai-grown-codebase-2om.md), [sloppylint](../../sources/github/rsionnach-sloppylint.md).

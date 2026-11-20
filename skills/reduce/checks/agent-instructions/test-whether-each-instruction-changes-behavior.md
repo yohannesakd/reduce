@@ -16,4 +16,4 @@ His repository makes the pruning test relative to the model. Keep project knowle
 
 **Reduce fit.** When the target is agent instructions, the behavior is the agent's decisions. Prove a removal with [Compare instructions with a controlled baseline](compare-instructions-with-a-controlled-baseline.md)'s controlled comparison.
 
-[Original X post](https://x.com/mattpocockuk/status/2069784839474032896). [Indexed copy and replies](https://remaja.twstalker.com/mattpocockuk/status/2069784839474032896). [Pinned guidance, especially “Pruning”](https://github.com/mattpocock/skills/blob/5beb35b040e3de97e54fa9e386d7e42d15c295c2/skills/productivity/writing-for-agents/SKILL.md).
+[Original X post](../../sources/x/mattpocockuk-2069784839474032896.md). [Indexed copy and replies](../../sources/x/mattpocockuk-2069784839474032896.md). [Pinned guidance, especially “Pruning”](../../sources/github/mattpocock-skills-skills-productivity-writing-for-agents-skill-md.md).

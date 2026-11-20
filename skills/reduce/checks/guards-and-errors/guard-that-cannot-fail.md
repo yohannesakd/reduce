@@ -28,4 +28,4 @@ total = sum(item.price for item in items)
 **Keeps it when.** The call parses external input. A batch must continue after one item fails. A salvage path must read what it can from a failing source. A third-party API forces the catch.
 Removing a catch that hides a real failure changes the observable result. Classify that result before you plan the removal.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code), [HN: defensive code](https://news.ycombinator.com/item?id=45530486), [Dagster rules](https://dagster.io/blog/dignified-python-10-rules-to-improve-your-llm-agents).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md), [HN: defensive code](../../sources/forums/hn-45530486.md), [Dagster rules](../../sources/web/dagster-io-blog-dignified-python-10-rules-to-improve-your-llm-agents.md).

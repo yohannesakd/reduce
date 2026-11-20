@@ -15,4 +15,4 @@ def fetch(url): ...
 
 **Keeps it when.** The function is a public interface. Then the options are behavior, and their consumers decide the class.
 
-**Sources.** [Refactoring.guru: Speculative Generality](https://refactoring.guru/refactoring/smells/dispensables), [Fowler on YAGNI](https://www.martinfowler.com/bliki/Yagni.html).
+**Sources.** [Refactoring.guru: Speculative Generality](../../sources/web/refactoring-guru-refactoring-smells-dispensables.md), [Fowler on YAGNI](../../sources/web/martinfowler-com-bliki-yagni-html.md).

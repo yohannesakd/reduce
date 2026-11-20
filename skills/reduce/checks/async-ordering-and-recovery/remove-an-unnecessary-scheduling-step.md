@@ -43,6 +43,6 @@ Check whether that fix keeps every inventory entry without the sequencing subsys
 Public protocol fields and emitted diagnostics are behavior. When the reduction cannot keep them, the affected units are `unresolved`.
 Report them for the user's decision. Do not plan their removal.
 
-[Original X comparison](https://x.com/abelanger5/status/2112250085044068801). [Reply linking both PRs](https://x.com/abelanger5/status/2112522897671508236).
-[Human PR 4733](https://github.com/hatchet-dev/hatchet/pull/4733). [AI PR 4734](https://github.com/hatchet-dev/hatchet/pull/4734). [Pinned human diff](https://github.com/hatchet-dev/hatchet/commit/832536464a349982a373f3019f1ef6d291e4f153).
+[Original X comparison](../../sources/x/abelanger5-2112250085044068801.md). [Reply linking both PRs](../../sources/x/abelanger5-2112522897671508236.md).
+[Human PR 4733](../../sources/github/hatchet-dev-hatchet-pull-4733.md). [AI PR 4734](../../sources/github/hatchet-dev-hatchet-pull-4734.md). [Pinned human diff](../../sources/github/hatchet-dev-hatchet-commit-832536464a.md).
 Human head `832536464a349982a373f3019f1ef6d291e4f153`, merge `9b2c6ad9377b1f78267e4ce815970e02af2edb6c`. Unmerged AI head `208bbd19597aac50e4f1987a11ed6025629fd67d`.

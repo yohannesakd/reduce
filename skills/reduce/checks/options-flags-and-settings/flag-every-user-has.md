@@ -26,4 +26,4 @@ Mechanical tools handle the check removal. A person or agent decides each test: 
 
 **Keeps it when.** The flag is a kill switch that a source requires. The flag is seasonal. A tenant override still exists.
 
-**Sources.** [Uber AutoClean](https://x.com/UberEng/status/2112604623454470476), [Piranha](https://eng.uber.com/piranha/), [Uber post summary](https://www.uber.com/us/en/blog/ai-code-cleanup/).
+**Sources.** [Uber AutoClean](../../sources/x/ubereng-2112604623454470476.md), [Piranha](../../sources/web/eng-uber-com-piranha.md), [Uber post summary](../../sources/web/uber-com-us-en-blog-ai-code-cleanup.md).

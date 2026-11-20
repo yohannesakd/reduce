@@ -26,4 +26,4 @@ send(user, true, false);
 
 **Reduce fit.** A `simplify` result must not compress meaning. Judge by concepts and reader effort; line count is secondary.
 
-[Report with original excerpts](https://lucumr.pocoo.org/2026/9/7/astra-why/).
+[Report with original excerpts](../../sources/web/lucumr-pocoo-org-2026-9-7-astra-why.md).

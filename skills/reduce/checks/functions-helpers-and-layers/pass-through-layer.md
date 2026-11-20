@@ -25,4 +25,4 @@ A class that does not earn its upkeep (a "lazy class") is deleted. A data class 
 
 **Keeps it when.** The layer is a seam with two real adapters. A seam with one adapter is hypothetical.
 
-**Sources.** [Ousterhout summary](https://danlebrero.com/2021/02/24/philosophy-of-software-design-summary/), [Refactoring.guru dispensables](https://refactoring.guru/refactoring/smells/dispensables).
+**Sources.** [Ousterhout summary](../../sources/web/danlebrero-com-2021-02-24-philosophy-of-software-design-summary.md), [Refactoring.guru dispensables](../../sources/web/refactoring-guru-refactoring-smells-dispensables.md).

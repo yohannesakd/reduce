@@ -8,4 +8,4 @@
 
 **Reduce fit.** Use this case in the check step to reject a reduction whose smaller code changes an inventory entry.
 
-[Original code and objections](https://www.reddit.com/r/webdev/comments/1nbqrf7/public_announcement_ai_is_cool_and_all_but_please/).
+[Original code and objections](../sources/forums/reddit-1nbqrf7.md).

@@ -17,4 +17,4 @@ Move applicable tests to the surviving behavior instead of deleting them.
 **Reduce fit.** Exported wrappers are public interfaces. Apply the test ladder to tests of surviving behavior.
 Keep the necessary coverage when tests move to the surviving helper. Remove a redundant test only when kept checks detect every material regression that it detects.
 
-[Dated report](https://github.github.com/gh-aw/blog/2026-09-07-agent-of-the-day/). [PR and objections](https://github.com/github/gh-aw/pull/58996). [Workflow at the merge revision](https://github.com/github/gh-aw/blob/6c75fb68a79519fda1e99962f5ef8b8609ce04c5/.github/workflows/dead-code-remover.md).
+[Dated report](../../sources/web/github-github-com-gh-aw-blog-2026-09-07-agent-of-the-day.md). [PR and objections](../../sources/github/github-gh-aw-pull-58996.md). [Workflow at the merge revision](../../sources/github/github-gh-aw-github-workflows-dead-code-remover-md.md).

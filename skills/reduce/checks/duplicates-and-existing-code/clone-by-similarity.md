@@ -24,4 +24,4 @@ Ask what changes the first unit and what changes the second. If the answers diff
 
 **Keeps it when.** The reasons to change differ.
 
-**Sources.** [isomorphic simplify listing](https://x.com/doodlestein/status/2047808489838329993), [More Code, Less Reuse](https://arxiv.org/abs/2601.21276v1), [tef](https://programmingisterrible.com/post/139222674273/write-code-that-is-easy-to-delete-not-easy-to).
+**Sources.** [isomorphic simplify listing](../../sources/x/doodlestein-2047808489838329993.md), [More Code, Less Reuse](../../sources/papers/arxiv-2601.21276.md), [tef](../../sources/web/programmingisterrible-com-post-139222674273-write-code-that-is-easy-to-delete-not-easy-to.md).

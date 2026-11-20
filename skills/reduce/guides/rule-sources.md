@@ -6,30 +6,21 @@ The [refactoring check](../checks/every-feature/refactoring.md) and the [languag
 
 - The refactoring check copies the PufferLib guide 1:1, without its C and CUDA sections. Its tables and the precedence are additions of reduce. The language rules paraphrase their sources and condense them into rules. Rules marked [RD] are rules of reduce.
 - Each rule has a reduce rung or the tag `lead`. Exceptions, version limits, the assert form, and the precedence are additions of reduce.
-- The language checks quote no long passages. Each rule cites the source pages that support it.
+- The language checks quote no long passages. The [sources folder](../sources/README.md) holds the full text of each source page, copied 1:1. A per-language index names the pages that support each rule.
 
 ## Sources and licenses
 
-| Checks | Source | License |
+| Checks | Copied source text | License |
 |---|---|---|
-| refactoring | [PufferLib `SKILL_ISSUES.md`](https://github.com/PufferAI/PufferLib/blob/5.0/SKILL_ISSUES.md), PufferAI | MIT, notice below |
-| JavaScript and TypeScript | [typescript-eslint](https://typescript-eslint.io) | MIT |
-| JavaScript and TypeScript | [ESLint](https://eslint.org) | MIT |
-| JavaScript and TypeScript | [TypeScript documentation](https://www.typescriptlang.org/docs/) | CC BY 4.0 |
-| JavaScript and TypeScript | [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html) | CC BY 3.0 |
-| React | [react.dev](https://react.dev) | CC BY 4.0 |
-| Vue | [Vue.js documentation](https://vuejs.org) | CC BY 4.0 |
-| Effect | [Effect documentation](https://effect.website) | Paraphrased only; the site states MIT, and its repository has no license file |
-| Effect | [Effect repository](https://github.com/Effect-TS/effect) | MIT |
-| Go | [Effective Go](https://go.dev/doc/effective_go), [Code Review Comments](https://go.dev/wiki/CodeReviewComments), [release notes](https://go.dev/doc/devel/release) | CC BY 4.0 |
-| Go | [Google Go Style Guide](https://google.github.io/styleguide/go/) | CC BY 3.0 |
-| Go | [Uber Go Style Guide](https://github.com/uber-go/guide) | Apache-2.0 |
-| Go | [Go Proverbs](https://go-proverbs.github.io/) | MIT |
-| Go | [`modernize` analyzers](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize) | BSD-3-Clause |
-| Python | [PEP 8 and PEP 20](https://peps.python.org) | Public domain |
-| Python | [Python documentation](https://docs.python.org/3/) and [typing documentation](https://typing.python.org) | PSF License 2.0 |
-| Python | [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) | CC BY 3.0 |
-| Python | [Ruff](https://docs.astral.sh/ruff/rules/), [mypy](https://mypy.readthedocs.io), [pyright](https://github.com/microsoft/pyright) | MIT |
+| refactoring | [PufferLib `SKILL_ISSUES.md`](../sources/github/pufferai-pufferlib-skill-issues-md.md), PufferAI | MIT, notice below |
+| JavaScript and TypeScript | [TypeScript sources](../sources/languages/typescript.md): typescript-eslint and ESLint rule pages, TSConfig and release-note pages, the Google TypeScript Style Guide | MIT; CC BY 4.0; CC BY 3.0 |
+| React | [React sources](../sources/languages/react.md): react.dev pages | CC BY 4.0 |
+| Vue | [Vue sources](../sources/languages/vue.md): Vue.js documentation pages | CC BY 4.0 |
+| Effect | [Effect sources](../sources/languages/effect.md): effect.website pages and `effect-smol` repository files | MIT |
+| Go | [Go sources](../sources/languages/go.md): Effective Go, Code Review Comments, release notes, the Google and Uber style guides, Go Proverbs, `modernize` | CC BY 4.0; CC BY 3.0; Apache-2.0; MIT; BSD-3-Clause |
+| Python | [Python sources](../sources/languages/python.md): PEP 8, PEP 20, Python documentation, the Google Python Style Guide, Ruff, mypy, and pyright pages | Public domain; PSF License 2.0; CC BY 3.0; MIT |
+
+Each copied file states its own author, license, and original location.
 
 ## PufferLib
 

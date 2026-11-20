@@ -15,4 +15,4 @@ If the target's only purpose is to remove the helper, and the callers never read
 
 **Keeps it when.** Every caller treats both states the same way, and the trace shows that.
 
-**Sources.** [Anaconda](https://www.anaconda.com/blog/deslopping-ai-code), [Silent Killers audit](https://ai.julianquick.com/ML/llm-audit.html).
+**Sources.** [Anaconda](../../sources/web/anaconda-com-blog-deslopping-ai-code.md).

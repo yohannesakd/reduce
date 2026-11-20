@@ -20,4 +20,4 @@ const isAllowed = (user: User) => true;
 
 **Keeps it when.** A source marks it as a stub for planned work and the plan owner has not cancelled that work. Record that constraint, and mark the unit `unresolved` until the owner decides.
 
-**Sources.** [sloppylint](https://github.com/rsionnach/sloppylint), [slopscore](https://github.com/Vinay-O/slopscore), [Debloating post](https://dev.to/maximsaplin/debloating-the-ai-grown-codebase-2om).
+**Sources.** [sloppylint](../../sources/github/rsionnach-sloppylint.md), [slopscore](../../sources/github/vinay-o-slopscore.md), [Debloating post](../../sources/web/dev-to-maximsaplin-debloating-the-ai-grown-codebase-2om.md).

@@ -34,4 +34,4 @@ Its date-picker task reports median source sizes of 335 lines without the skill 
 This supports reuse of a platform feature. It does not establish identical customization or browser behavior.
 Only 18 tasks had executable hidden correctness checks. The date-picker task was in the code-size group, with model-judged completeness.
 
-[Verbatim outputs and original task](https://github.com/DietrichGebert/ponytail/blob/main/examples/react-countdown.md). [Dated methodology and per-task results](https://github.com/DietrichGebert/ponytail/blob/88cedebb3c1f8d024ef361e13232bdf98c071481/benchmarks/results/2026-10-07-agentic.md).
+[Verbatim outputs and original task](../../sources/github/dietrichgebert-ponytail-examples-react-countdown-md.md). [Dated methodology and per-task results](../../sources/github/dietrichgebert-ponytail-benchmarks-results-2026-10-07-agentic-md.md).

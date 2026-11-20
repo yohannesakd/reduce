@@ -19,4 +19,4 @@ Most bloat is transitive. A study of 9,639 Maven artifacts found 2.7 percent of 
 
 **Keeps it when.** A reachable import needs it on a supported runtime, and the language, the platform, or an existing dependency does not give the same result there. Or the library carries tested edge-case behavior that the target needs.
 
-**Sources.** [slopscore](https://github.com/Vinay-O/slopscore), [DepClean study](https://arxiv.org/abs/2001.07808v1).
+**Sources.** [slopscore](../../sources/github/vinay-o-slopscore.md), [DepClean study](../../sources/papers/arxiv-2001.07808.md).

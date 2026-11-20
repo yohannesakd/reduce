@@ -47,4 +47,4 @@ if hasattr(self, "close"):
 **Reduce fit.** The existence check is `remove` when the contract holds. Removing the catch changes behavior when cleanup throws.
 The reduce skill keeps the catch. The swallowed failure is a suspected defect, and no source requires the warning. Its removal is a contingent reduction for the user's decision, with the consumer search recorded.
 
-[Original report and both implementations](https://blogs.gnome.org/jrahmatzadeh/2025/12/06/ai-and-gnome-shell-extensions/).
+[Original report and both implementations](../../sources/web/blogs-gnome-org-jrahmatzadeh-2025-12-06-ai-and-gnome-shell-extensions.md).

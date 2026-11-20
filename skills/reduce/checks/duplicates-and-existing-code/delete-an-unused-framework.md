@@ -30,4 +30,4 @@ After
 
 **Reduce fit.** `remove` for the group. Exported types are public interfaces. Check their consumers first.
 
-[PR rationale](https://github.com/phfarath/Strata/pull/76). [Pinned gateway deletion](https://github.com/phfarath/Strata/commit/72045cc07e8459ff97d861c46cffcac57b30d7ce).
+[PR rationale](../../sources/github/phfarath-strata-pull-76.md). [Pinned gateway deletion](../../sources/github/phfarath-strata-commit-72045cc07e.md).

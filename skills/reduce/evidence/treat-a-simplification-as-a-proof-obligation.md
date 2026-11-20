@@ -15,4 +15,4 @@ It never merges clones that have different reasons to change. It logs each rejec
 
 **Reduce fit.** Proof in the check step. The gate, the card, and the rejection log are in [Baseline and gates](execution-checks.md#baseline-and-gates). The clone types are in [A clone, by degree of similarity](../checks/duplicates-and-existing-code/clone-by-similarity.md).
 
-[Author's post](https://x.com/doodlestein/status/2047808489838329993). [Skill listing](https://jeffreys-skills.md/skills/simplify-and-refactor-code-isomorphically).
+[Author's post](../sources/x/doodlestein-2047808489838329993.md). [Skill listing](../sources/web/jeffreys-skills-md-skills-simplify-and-refactor-code-isomorphically.md).

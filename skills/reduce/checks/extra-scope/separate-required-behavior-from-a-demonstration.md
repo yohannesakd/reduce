@@ -14,4 +14,4 @@
 
 **Reduce fit.** A reachable demonstration is behavior. Report it. Remove it only when no entry point exposes it.
 
-[Report and results](https://simonwillison.net/2026/Aug/16/qwen-38-27b/). [Original prompt and generated implementation](https://gist.github.com/simonw/121ad098860028b2fab603fa12da1fd9).
+[Report and results](../../sources/web/simonwillison-net-2026-aug-16-qwen-38-27b.md). [Original prompt and generated implementation](../../sources/github/gist-121ad098860028b2fab603fa12da1fd9.md).

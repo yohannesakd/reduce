@@ -20,4 +20,4 @@ A generated suite can raise coverage without protection: one report counted 96 o
 
 **Keeps it when.** It fails when the behavior breaks and passes when only internals change.
 
-**Sources.** [Tesbo](https://www.tesbo.io/insights/roadmap/reviewing-ai-written-tests), [Zidane Wu](https://zidanewu.com/posts/ai-generated-tests-hidden-cost/), [@dmokafa](https://x.com/dmokafa/status/2114977298122244116).
+**Sources.** [Tesbo](../../sources/web/tesbo-io-insights-roadmap-reviewing-ai-written-tests.md), [Zidane Wu](../../sources/web/zidanewu-com-posts-ai-generated-tests-hidden-cost.md), [Daniel Moka⚡](../../sources/x/dmokafa-2114977298122244116.md).
