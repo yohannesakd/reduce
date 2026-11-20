@@ -12,13 +12,13 @@
 
 ## Errors and panics
 
-- **GO1** Error returns for states that only a bug produces become one `panic`. Delete the callers' checks. `remove`
+- **GO1** Error returns for states that only a bug produces become one `panic`. Delete the callers' checks. `remove` [RD]
 - **GO2** Input, I/O, and other failures that a caller can cause return an `error`. Never panic for them. `lead`
   Unless: setup cannot continue, or a `Must` function runs at program start.
 - **GO3** Never throw away a returned `error` with `_`. `lead`
 - **GO4** Delete error wraps that only say that something failed. Return `err`. `remove`
 - **GO5** Log an error or return it. Never both. `remove`
-- **GO6** Combine errors with `errors.Join` or several `%w`. No custom multi-error type. `reuse` Go 1.20
+- **GO6** Combine errors with `errors.Join` or several `%w`. `reuse` Go 1.20
 
 ## Control flow
 
@@ -39,7 +39,7 @@
 
 ## Values and declarations
 
-- **GO18** Build a struct with one composite literal. No field-by-field assignments, no setter wrappers. `simplify`
+- **GO18** Build a struct with one composite literal. No field-by-field assignments. `simplify`
 - **GO19** Delete constructors and setup when the zero value is ready. A `sync.Mutex` field is a plain value. `remove`
 - **GO20** Return a `nil` slice, not `[]T{}`. Test emptiness with `len(s) == 0`. `simplify`
   Unless: the JSON output must be `[]`.

@@ -35,7 +35,7 @@ The [javascript and typescript rules](../../checks/languages/typescript.md) cite
 | TS27 | [typescript-eslint: no-useless-constructor](typescript/typescript-eslint-no-useless-constructor.md), [Google TypeScript Style Guide](typescript/google-typescript-style-guide.md) |
 | TS28 | [Google TypeScript Style Guide](typescript/google-typescript-style-guide.md) |
 | TS29 | [Google TypeScript Style Guide](typescript/google-typescript-style-guide.md) |
-| TS30 | [TSConfig reference: erasableSyntaxOnly](typescript/tsconfig-erasableSyntaxOnly.md), [Google TypeScript Style Guide](typescript/google-typescript-style-guide.md) |
+| TS30 | Rule of reduce, from the [refactoring algorithm](../../checks/every-feature/refactoring.md) |
 | TS31 | [TSConfig reference: erasableSyntaxOnly](typescript/tsconfig-erasableSyntaxOnly.md), [TypeScript 5.8 release notes](typescript/typescript-5-8-release-notes.md) |
 | TS32 | [TSConfig reference: verbatimModuleSyntax](typescript/tsconfig-verbatimModuleSyntax.md), [Google TypeScript Style Guide](typescript/google-typescript-style-guide.md) |
 | TS33 | [typescript-eslint: no-unused-vars](typescript/typescript-eslint-no-unused-vars.md), [Google TypeScript Style Guide](typescript/google-typescript-style-guide.md) |

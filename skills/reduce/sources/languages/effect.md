@@ -29,7 +29,7 @@ The [effect rules](../../checks/languages/effect.md) cite this index. For each r
 | E21 | [Layer Memoization](effect/layer-memoization.md), [Migration: layer memoization](effect/migration-layer-memoization.md) |
 | E22 | Rule of reduce, from the [refactoring algorithm](../../checks/every-feature/refactoring.md) |
 | E23 | [Running Effects](effect/running-effects.md), [Guidelines](effect/code-style-guidelines.md), [LLMS.md](effect/llms.md) |
-| E24 | [Introduction to Resource Management](effect/resource-management.md) |
+| E24 | [Managing Layers](effect/layers.md), [Introduction to Resource Management](effect/resource-management.md) |
 | E25 | [Configuration](effect/configuration.md) |
 | E26 | [Introduction to Effect Schema](effect/schema-introduction.md), [LLMS.md](effect/llms.md) |
 | E27 | [Basic Concurrency](effect/basic-concurrency.md) |

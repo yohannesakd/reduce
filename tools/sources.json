@@ -1493,7 +1493,7 @@
   "title": "Managing Layers",
   "author": "The Effect team, effect.website",
   "license": "MIT, as the site states",
-  "uses": "E18",
+  "uses": "E18, E24",
   "status": "ok"
  },
  {
@@ -2276,7 +2276,7 @@
   "title": "The Python Language Reference: Simple statements",
   "author": "The Python Software Foundation",
   "license": "PSF License 2.0",
-  "uses": "P1, P2",
+  "uses": "P1, P2, P6",
   "status": "ok"
  },
  {

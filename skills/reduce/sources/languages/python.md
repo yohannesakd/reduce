@@ -7,11 +7,11 @@ The [python rules](../../checks/languages/python.md) cite this index. For each r
 | Rule | Sources |
 |---|---|
 | P1 | [Google Python Style Guide](python/google-python-style-guide.md), [The Python Language Reference: Simple statements](python/assert-statement.md), [Command line and environment](python/command-line-o.md), [Ruff rule S101: assert](python/ruff-s101-assert.md) |
-| P2 | [The Python Language Reference: Simple statements](python/assert-statement.md) |
+| P2 | Rule of reduce, from the [refactoring algorithm](../../checks/every-feature/refactoring.md) |
 | P3 | [PEP 8: Style Guide for Python Code](python/pep-8.md), [Google Python Style Guide](python/google-python-style-guide.md), [Ruff rule BLE001: blind-except](python/ruff-ble001-blind-except.md), [Ruff rule E722: bare-except](python/ruff-e722-bare-except.md) |
 | P4 | [Ruff rule TRY203: useless-try-except](python/ruff-try203-useless-try-except.md) |
 | P5 | [Ruff rule TRY201: verbose-raise](python/ruff-try201-verbose-raise.md) |
-| P6 | [Ruff rule B904: raise-without-from-inside-except](python/ruff-b904-raise-without-from-inside-except.md) |
+| P6 | [The Python Language Reference: Simple statements](python/assert-statement.md), [Ruff rule B904: raise-without-from-inside-except](python/ruff-b904-raise-without-from-inside-except.md) |
 | P7 | [Ruff rule SIM105: suppressible-exception](python/ruff-sim105-suppressible-exception.md) |
 | P8 | [PEP 8: Style Guide for Python Code](python/pep-8.md), [Google Python Style Guide](python/google-python-style-guide.md), [Ruff rule SIM115: open-file-with-context-handler](python/ruff-sim115-open-file-with-context-handler.md) |
 | P9 | [PEP 20: The Zen of Python](python/pep-20.md), [Ruff rule RET505: superfluous-else-return](python/ruff-ret505-superfluous-else-return.md), [Ruff rule RET506: superfluous-else-raise](python/ruff-ret506-superfluous-else-raise.md), [Ruff rule RET507: superfluous-else-continue](python/ruff-ret507-superfluous-else-continue.md), [Ruff rule RET508: superfluous-else-break](python/ruff-ret508-superfluous-else-break.md) |

@@ -38,6 +38,7 @@
 - **V14** Use `defineProps<T>()` with destructured defaults. Delete `withDefaults` and duplicate runtime prop objects. `remove` Vue 3.5
 - **V15** Pass a destructured prop to `watch` or to a composable as a getter, `() => foo`. `lead`
 - **V16** Do not reach into a child through `$parent` or a template ref. Use props and emits. `lead`
+  Unless: the parent and the child are tightly coupled by design.
 
 ## Templates
 
@@ -51,6 +52,7 @@
 - **V21** Read ref, getter, and plain-value arguments with `toValue()`. Delete `isRef` branches. `simplify`
 - **V22** Return a plain object of refs from a composable. Not a `reactive()` object, not a `.value` copy. `lead`
 - **V23** Call composables only synchronously, in `<script setup>` or `setup()`. `lead`
+  Unless: a lifecycle hook, such as `onMounted()`, calls the composable.
 - **V24** A composable removes every listener and timer that it adds, in `onUnmounted()`. `lead`
 - **V25** In server-rendered apps, no per-user state in reactive module-scope singletons. Provide it per app, or use Pinia. `lead`
 - **V26** A composable that one component calls once is that component's code. Inline it. `simplify` [RD]

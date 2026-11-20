@@ -13,7 +13,7 @@
 ## Asserts and exceptions
 
 - **P1** Never use `assert` to validate user input, files, network data, or public arguments. `lead`
-- **P2** Defensive `if ...: raise` checks of internal invariants become one `assert`. `simplify`
+- **P2** Defensive `if ...: raise` checks of internal invariants become one `assert`. `simplify` [RD]
   Unless: the check guards external input, as P1 says.
 - **P3** No bare `except:`, no `except Exception`, no `except BaseException`. `lead`
   Unless: the handler raises again, or logs the traceback at an isolation point.
@@ -38,9 +38,9 @@
 
 - **P16** A loop that only appends to a new list or dict is a comprehension. `simplify`
   Unless: it needs several `for` clauses or a complex filter.
-- **P17** Delete redundant wrappers: `list()` around comprehensions, `dict()` for literals, `.keys()` in `in` tests and loops. `remove`
+- **P17** Delete `.keys()` in `in` tests and loops. Write `{}`, not an empty `dict()` call. `remove`
 - **P18** Format strings with f-strings. No `%` formatting, no `.format()`. `simplify`
-- **P19** Use `pathlib.Path` in new code. No `os.path` joins and string paths. `simplify`
+- **P19** Join paths with `pathlib.Path` and `/` in new code, not `os.path.join`. `simplify`
 
 ## Classes and functions
 

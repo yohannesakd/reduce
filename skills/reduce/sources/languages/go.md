@@ -6,7 +6,7 @@ The [go rules](../../checks/languages/go.md) cite this index. For each rule, the
 
 | Rule | Sources |
 |---|---|
-| GO1 | [Google Go Style Guide: Best Practices](go/google-go-style-best-practices.md) |
+| GO1 | Rule of reduce, from the [refactoring algorithm](../../checks/every-feature/refactoring.md) |
 | GO2 | [Effective Go](go/effective-go.md), [Go Code Review Comments](go/code-review-comments.md), [Google Go Style Guide: Style Decisions](go/google-go-style-decisions.md), [Uber Go Style Guide](go/uber-go-style-guide.md) |
 | GO3 | [Effective Go](go/effective-go.md), [Go Code Review Comments](go/code-review-comments.md) |
 | GO4 | [Google Go Style Guide: Best Practices](go/google-go-style-best-practices.md) |

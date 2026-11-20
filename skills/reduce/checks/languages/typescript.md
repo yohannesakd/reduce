@@ -35,7 +35,7 @@
 ## Escape hatches
 
 - **TS14** No `any`. Write `unknown`, and narrow it. `lead`
-  Unless: an external package has no types. Then wrap it once, at the boundary.
+  Unless: an external package has no types yet. Use `any` there until a `.d.ts` file exists.
 - **TS15** No `!` non-null assertions. Narrow the value, or fix the type. `lead`
 - **TS16** Do not cast an object literal with `as`. Annotate the variable. `lead`
 - **TS17** No `@ts-ignore` and no `@ts-nocheck`. `@ts-expect-error` only, with a reason. `lead`
@@ -52,7 +52,7 @@
 - **TS22** Throw and reject only `Error` instances. `lead`
 - **TS23** Delete `catch` branches for values that are not `Error` instances. `remove`
   Unless: the called API throws other values. Name it in a comment.
-- **TS24** Delete a `try`/`catch` whose `catch` only throws the error again, or only logs it and throws it again. `remove`
+- **TS24** Delete a `try`/`catch` whose `catch` only throws the caught error again. `remove`
 - **TS25** Move statements that cannot throw out of the `try` block. `simplify`
 
 ## Classes and modules
@@ -63,14 +63,13 @@
 - **TS28** Delete getters and setters that only wrap a private field. Make the property public or `readonly`. `remove`
 - **TS29** No `namespace`. Use modules. `remove`
   Unless: third-party code needs the namespace.
-- **TS30** No `enum`. Write a union of string literals, or an `as const` object. `simplify`
+- **TS30** No `enum`. Write a union of string literals, or an `as const` object. `simplify` [RD]
   Unless: the project does not set `erasableSyntaxOnly`, and other code depends on the enum's runtime object.
 - **TS31** With `erasableSyntaxOnly`, no parameter properties, no `import =`, and no `export =`. `lead` TypeScript 5.8
 - **TS32** Write `import type` and `export type` for names that are only types. `lead`
 - **TS33** Delete unused variables, imports, and trailing unused parameters. `remove`
   Unless: a later parameter needs the position. Prefix the unused name with `_`.
 - **TS34** No default exports. Use named exports. `lead`
-  Unless: a framework requires a default export, such as a route or page file.
 - **TS35** Delete an `index.ts` that only re-exports its folder. Import from the file that defines the name. `remove` [RD]
   Unless: the folder is a published package entry point.
 

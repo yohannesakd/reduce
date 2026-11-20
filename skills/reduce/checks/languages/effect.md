@@ -12,7 +12,7 @@
 
 ## Functions and generators
 
-- **E1** No function whose only body is `return Effect.gen(...)`. Use `Effect.fn("name")` or `Effect.fnUntraced`. `remove`
+- **E1** No function whose only body is `return Effect.gen(...)`. Use `Effect.fn("name")`. `remove`
 - **E2** The `Effect.fn` name string equals the name of the constant that it creates. `lead`
 - **E3** Pass combinators as arguments of `Effect.fn`. Do not call `.pipe` on the function that it returns. `simplify`
 - **E4** Yield a tagged error directly, `yield* new E(...)`. Delete the `Effect.fail(...)` around it. `remove`
@@ -28,7 +28,7 @@
 - **E10** Every tagged error class has its own tag. `lead`
 - **E11** No catch handler that switches on `_tag`. Use `Effect.catchTag` or `Effect.catchTags`. `simplify`
 - **E12** Impossible states are defects: `Effect.die` or `Effect.orDie`. Delete their typed error classes and handlers. `remove`
-- **E13** Do not catch defects or causes in domain logic: `catchDefect`, `catchCause`, or `exit` (v3: `catchAllDefect`, `catchAllCause`). `lead`
+- **E13** Do not catch defects or causes in domain logic: `Effect.catchDefect` or `Effect.catchCause`. `lead`
   Unless: the line is an application boundary or a test.
 - **E14** Code that can throw goes in `Effect.try` or `Effect.tryPromise`. `Effect.sync` and `Effect.promise` are only for code that cannot fail. `lead`
 - **E15** No hand-written retry or polling loops. Use `Effect.retry` or `Effect.repeat` with a schedule. `remove`
